@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import * as argon2 from "argon2";
 import session from "express-session";
+import FileStore from "session-file-store";
 import { pool } from "./db.js";
 import examsRouter from "./routes/exams.js";
 import questionsRouter from "./routes/questions.js";
@@ -15,6 +16,18 @@ dotenv.config();
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
+
+// ✅ SECURE: Setup file-based session store for persistence
+// Memory store doesn't persist sessions across server restarts or multiple processes
+// FileStore saves sessions to disk, allowing sessions to survive process restarts
+const fileStore = new (FileStore(session))({
+  path: process.env.SESSION_PATH || "./sessions",  // Directory to store session files
+  ttl: 24 * 60 * 60,  // 24 hours - matches cookie maxAge
+  reapInterval: 60 * 60,  // Clean up expired sessions every hour
+  fileExtension: ".json"
+});
+
+console.log("[✅ SESSION] File-based session store configured");
 
 // ✅ SECURE: CORS configured to allow cookies/credentials
 // Without credentials: true, browsers won't send or return cookies
@@ -30,7 +43,9 @@ app.use(express.json());
 
 // ✅ SECURE: Express session middleware configuration
 // Sessions store user authentication state server-side, preventing plaintext credentials in requests
+// Using FileStore to persist sessions across server restarts
 app.use(session({
+  store: fileStore,  // ✅ CRITICAL: Use file-based store for persistence
   secret: process.env.SESSION_SECRET || "your-super-secret-key-change-in-production", // ⚠️ Change this!
   resave: false,
   saveUninitialized: false,
