@@ -1,4 +1,5 @@
 import express from "express";
+import * as argon2 from "argon2";
 import { pool } from "../db.js";
 
 const router = express.Router();
@@ -39,16 +40,26 @@ router.post("/", async (req, res) => {
   try {
     const { username, password, role, email } = req.body;
 
+    // Validate required fields
+    if (!username || !password || !role) {
+      return res.status(400).json({ error: "Username, password, and role are required" });
+    }
+
     if (!["student", "professor", "admin"].includes(role)) {
       return res.status(400).json({ error: "Invalid role" });
     }
 
+    // ✅ SECURE: Hash password using Argon2 before storing
+    const hashedPassword = await argon2.hash(password);
+
     const [result] = await pool.execute(
       "INSERT INTO users (username, password, role, email) VALUES (?, ?, ?, ?)",
-      [username, password, role, email]
+      [username, hashedPassword, role, email]
     );
 
-    res.json({ id: result.insertId, message: "User created" });
+    console.log(`[✅ ARGON2] New user created: ${username} with hashed password`);
+
+    res.json({ id: result.insertId, message: "User created successfully" });
   } catch (error) {
     if (error.code === "ER_DUP_ENTRY") {
       res.status(400).json({ error: "Username already exists" });
@@ -77,8 +88,11 @@ router.put("/:id", async (req, res) => {
       values.push(username);
     }
     if (password !== undefined) {
+      // ✅ SECURE: Hash password using Argon2 before storing
+      const hashedPassword = await argon2.hash(password);
       updates.push(" password = ?");
-      values.push(password);
+      values.push(hashedPassword);
+      console.log(`[✅ ARGON2] Password updated for user ID: ${id} with hashed password`);
     }
     if (role !== undefined) {
       updates.push(" role = ?");
@@ -97,7 +111,7 @@ router.put("/:id", async (req, res) => {
     values.push(id);
 
     await pool.execute(query, values);
-    res.json({ message: "User updated" });
+    res.json({ message: "User updated successfully" });
   } catch (error) {
     if (error.code === "ER_DUP_ENTRY") {
       res.status(400).json({ error: "Username already exists" });

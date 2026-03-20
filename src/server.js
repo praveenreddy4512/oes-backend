@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import * as argon2 from "argon2";
 import { pool } from "./db.js";
 import examsRouter from "./routes/exams.js";
 import questionsRouter from "./routes/questions.js";
@@ -40,34 +41,46 @@ app.post("/api/login", async (req, res) => {
   }
 
   // ✅ SECURE: Length validation
-  if (username.length > 50 || password.length > 50) {
+  if (username.length > 50 || password.length > 255) {
     return res.status(400).json({ message: "Username or password too long" });
   }
 
   try {
-    // ❌ VULNERABLE CODE (for educational reference - DO NOT USE IN PRODUCTION)
-    // const unsafeQuery = `SELECT id, username, role, email FROM users WHERE username = '${username}' AND password = '${password}' LIMIT 1`;
-    // This is vulnerable to SQL injection attacks like:
-    // - admin' OR '1'='1
-    // - student1' --
-    // - ' OR '1'='1' --
-
-    // ✅ SECURE: Use parameterized queries (prepared statements)
-    // This prevents SQL injection because user input is treated as data, not SQL code
+    // ✅ SECURE: Use parameterized queries with Argon2 password hashing
+    // Fetch user including their hashed password
     const [rows] = await pool.execute(
-      "SELECT id, username, role, email FROM users WHERE username = ? AND password = ? LIMIT 1",
-      [username, password]
+      "SELECT id, username, role, email, password FROM users WHERE username = ? LIMIT 1",
+      [username]
     );
 
-    console.log("[✅ SECURE] Login attempt for user:", username);
+    console.log("[✅ ARGON2] Login attempt for user:", username);
 
     if (rows.length === 0) {
+      // Prevent timing attacks by always hashing even if user not found
+      await argon2.verify("$argon2id$v=19$m=19456$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAA", password).catch(() => {});
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    const user = rows[0];
+
+    // ✅ SECURE: Verify password using Argon2
+    const passwordMatch = await argon2.verify(user.password, password);
+
+    if (!passwordMatch) {
+      console.log("[🔒] Invalid password for user:", username);
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    console.log("[✅ LOGIN SUCCESS] User authenticated:", username);
+
     return res.json({
       message: "Login successful",
-      user: rows[0],
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        email: user.email
+      },
     });
   } catch (error) {
     console.error("[ERROR]", error.message);
