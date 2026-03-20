@@ -17,6 +17,10 @@ dotenv.config();
 const app = express();
 const port = Number(process.env.PORT || 5000);
 
+// ✅ CRITICAL: Trust proxy headers from LiteSpeed/Nginx
+// Required for secure cookies when behind a reverse proxy
+app.set('trust proxy', 1);
+
 // ✅ SECURE: Setup file-based session store for persistence
 // Memory store doesn't persist sessions across server restarts or multiple processes
 // FileStore saves sessions to disk, allowing sessions to survive process restarts
