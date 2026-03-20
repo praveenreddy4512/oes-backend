@@ -177,15 +177,26 @@ app.post("/api/login", async (req, res) => {
 
     console.log("[🔐 SESSION] Created session for user:", username, "Session ID:", req.sessionID);
 
-    return res.json({
-      message: "Login successful",
-      user: {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        email: user.email
-      },
-      sessionCreated: true
+    // ✅ CRITICAL: Save session and send Set-Cookie header
+    // This MUST be called explicitly to ensure the Set-Cookie header is sent to the client
+    req.session.save((err) => {
+      if (err) {
+        console.error("[❌ SESSION SAVE ERROR]", err.message);
+        return res.status(500).json({ message: "Session error", error: err.message });
+      }
+
+      console.log("[✅ COOKIE] Set-Cookie header will be sent for session:", req.sessionID);
+
+      return res.json({
+        message: "Login successful",
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          email: user.email
+        },
+        sessionCreated: true
+      });
     });
   } catch (error) {
     console.error("[ERROR]", error.message);
