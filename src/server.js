@@ -16,7 +16,16 @@ dotenv.config();
 const app = express();
 const port = Number(process.env.PORT || 5000);
 
-app.use(cors());
+// ✅ SECURE: CORS configured to allow cookies/credentials
+// Without credentials: true, browsers won't send or return cookies
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "*",  // Allow frontend origin
+  credentials: true,  // ✅ CRITICAL: Allow cookies to be sent/received
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 200
+}));
+
 app.use(express.json());
 
 // ✅ SECURE: Express session middleware configuration
