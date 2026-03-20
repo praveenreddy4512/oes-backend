@@ -3,7 +3,24 @@ import { pool } from "../db.js";
 
 const router = express.Router();
 
-// Get questions for exam
+// Get questions (with optional exam_id query parameter)
+router.get("/", async (req, res) => {
+  try {
+    const { exam_id } = req.query;
+    if (!exam_id) {
+      return res.status(400).json({ error: "exam_id query parameter required" });
+    }
+    const [questions] = await pool.execute(
+      "SELECT id, exam_id, question_text, option_a, option_b, option_c, option_d, marks, correct_option FROM questions WHERE exam_id = ?",
+      [exam_id]
+    );
+    res.json(questions);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get questions for exam (legacy endpoint)
 router.get("/exam/:exam_id", async (req, res) => {
   try {
     const { exam_id } = req.params;
