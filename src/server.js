@@ -89,11 +89,42 @@ app.post("/api/login", async (req, res) => {
     // - Automatic salting (each password different hash)
     // - Time-cost iterations (slows brute-force attempts)
     // - Constant-time comparison (prevents timing attacks)
-    const passwordMatch = await argon2.verify(user.password, password);
+    
+    // MIGRATION STRATEGY: Handle both plaintext (old) and hashed (new) passwords
+    let passwordMatch = false;
+    let needsRehash = false;
+
+    if (user.password.startsWith("$argon2")) {
+      // Password is already hashed - verify directly
+      passwordMatch = await argon2.verify(user.password, password);
+      console.log("[✅ ARGON2] Verified hashed password for:", username);
+    } else {
+      // Password is plaintext (migration from old system) - compare and mark for rehash
+      passwordMatch = user.password === password;
+      if (passwordMatch) {
+        needsRehash = true;
+        console.log("[⚠️  MIGRATION] Plaintext password detected for:", username, "- will rehash");
+      }
+    }
 
     if (!passwordMatch) {
       console.log("[🔒] Invalid password for user:", username);
       return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // If password was plaintext, hash and update it in the database
+    if (needsRehash) {
+      try {
+        const hashedPassword = await argon2.hash(password);
+        await pool.execute(
+          "UPDATE users SET password = ? WHERE id = ?",
+          [hashedPassword, user.id]
+        );
+        console.log("[✅ MIGRATION COMPLETE] Password hashed and stored for:", username);
+      } catch (hashError) {
+        console.error("[❌ MIGRATION ERROR] Failed to hash password for:", username, hashError.message);
+        // Continue login even if rehash fails - don't break user experience
+      }
     }
 
     console.log("[✅ LOGIN SUCCESS] User authenticated:", username);
