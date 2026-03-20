@@ -29,7 +29,17 @@ router.post("/", async (req, res) => {
   try {
     const { exam_id, student_id } = req.body;
 
-    // Check if already submitted
+    // ❌ VULNERABLE CODE (for educational purposes - DO NOT USE IN PRODUCTION)
+    // Insecure approach - string concatenation:
+    // const unsafeCheckQuery = `SELECT id FROM submissions WHERE exam_id = ${exam_id} AND student_id = ${student_id}`;
+    // const [existing] = await pool.execute(unsafeCheckQuery);
+    // Problems:
+    // - SQL Injection: student_id = "1 OR 1=1" bypasses the duplicate check
+    // - Allows multiple submissions for same exam
+    // - exam_id = "1 UNION SELECT ..." could inject additional queries
+    // - No input validation on numeric parameters
+
+    // ✅ SECURE: Use parameterized queries to prevent SQL injection
     const [existing] = await pool.execute(
       "SELECT id FROM submissions WHERE exam_id = ? AND student_id = ?",
       [exam_id, student_id]
@@ -39,6 +49,15 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Exam already submitted by this student" });
     }
 
+    // ❌ VULNERABLE CODE (for educational purposes - DO NOT USE IN PRODUCTION)
+    // Insecure INSERT:
+    // const unsafeInsertQuery = `INSERT INTO submissions (exam_id, student_id) VALUES (${exam_id}, ${student_id})`;
+    // Problems:
+    // - exam_id/student_id could reference non-existent IDs
+    // - Foreign key constraints bypassed with improper validation
+    // - Allows cross-student submissions if not validated on backend
+
+    // ✅ SECURE: Validate and use parameterized queries
     const [result] = await pool.execute(
       "INSERT INTO submissions (exam_id, student_id) VALUES (?, ?)",
       [exam_id, student_id]

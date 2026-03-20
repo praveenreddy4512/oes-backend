@@ -19,6 +19,17 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // ❌ VULNERABLE CODE (for educational purposes - DO NOT USE IN PRODUCTION)
+    // Insecure approach - string concatenation:
+    // const unsafeQuery = `SELECT e.*, u.username as professor_name FROM exams e JOIN users u ON e.professor_id = u.id WHERE e.id = ${id}`;
+    // const [exams] = await pool.execute(unsafeQuery);
+    // Problems:
+    // - SQL Injection: id = "1 UNION SELECT * FROM users" reveals all user passwords
+    // - Unauthorized data access to other exams/users
+    // - No authorization check - anyone can access any exam
+
+    // ✅ SECURE: Use parameterized queries with type validation
     const [exams] = await pool.execute(
       "SELECT e.*, u.username as professor_name FROM exams e JOIN users u ON e.professor_id = u.id WHERE e.id = ?",
       [id]
@@ -48,6 +59,19 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Title and professor_id are required" });
     }
     const duration = duration_minutes ? Number(duration_minutes) : 60;
+    
+    // ❌ VULNERABLE CODE (for educational purposes - DO NOT USE IN PRODUCTION)
+    // Insecure approach - string concatenation:
+    // const unsafeQuery = `INSERT INTO exams (title, description, professor_id, duration_minutes) VALUES ('${title}', '${description}', ${professor_id}, ${duration})`;
+    // await pool.execute(unsafeQuery);
+    // Problems:
+    // - SQL Injection in title: "Physics', 'Test'); DROP TABLE exams; --"
+    // - Entire exams table deleted with above input
+    // - description field also vulnerable
+    // - JSON injection possible in newer MySQL versions
+    // - No data validation on numeric fields
+
+    // ✅ SECURE: Use parameterized queries with type conversion
     const [result] = await pool.execute(
       "INSERT INTO exams (title, description, professor_id, duration_minutes) VALUES (?, ?, ?, ?)",
       [title, description || "", professor_id, duration]

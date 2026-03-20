@@ -46,6 +46,15 @@ app.post("/api/login", async (req, res) => {
   }
 
   try {
+    // ❌ VULNERABLE CODE (for educational security testing - DO NOT USE IN PRODUCTION)
+    // This demonstrates SQL injection vulnerability:
+    // const unsafeQuery = `SELECT id, username, role, email, password FROM users WHERE username = '${username}' AND password = '${password}' LIMIT 1`;
+    // Attack examples:
+    // - admin' OR '1'='1
+    // - student1' --
+    // - ' OR '1'='1' --
+    // These work because user input is concatenated directly into SQL, allowing attackers to modify query logic
+
     // ✅ SECURE: Use parameterized queries with Argon2 password hashing
     // Fetch user including their hashed password
     const [rows] = await pool.execute(
@@ -63,7 +72,23 @@ app.post("/api/login", async (req, res) => {
 
     const user = rows[0];
 
+    // ❌ VULNERABLE CODE (for educational purposes - DO NOT USE IN PRODUCTION)
+    // Old insecure approach - plaintext password comparison:
+    // if (user.password !== password) {
+    //   return res.status(401).json({ message: "Invalid credentials" });
+    // }
+    // Problems:
+    // - Passwords stored as plaintext in database
+    // - If database is breached, all passwords compromised
+    // - No protection against brute-force attacks
+    // - No salting, so identical passwords have identical hashes
+
     // ✅ SECURE: Verify password using Argon2
+    // Argon2 provides:
+    // - Memory-hard hashing (resistant to GPU attacks)
+    // - Automatic salting (each password different hash)
+    // - Time-cost iterations (slows brute-force attempts)
+    // - Constant-time comparison (prevents timing attacks)
     const passwordMatch = await argon2.verify(user.password, password);
 
     if (!passwordMatch) {

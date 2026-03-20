@@ -37,6 +37,18 @@ router.get("/", async (req, res) => {
 router.get("/student/:student_id", async (req, res) => {
   try {
     const { student_id } = req.params;
+    
+    // ❌ VULNERABLE CODE (for educational purposes - DO NOT USE IN PRODUCTION)
+    // Insecure approach - string concatenation:
+    // const unsafeQuery = `SELECT r.*, e.title as exam_title FROM results r JOIN exams e ON r.exam_id = e.id WHERE r.student_id = ${student_id}`;
+    // const [results] = await pool.execute(unsafeQuery);
+    // Problems:
+    // - SQL Injection: student_id = "1 UNION SELECT * FROM users" returns all user data
+    // - student_id = "1 OR 1=1" returns all results (information disclosure)
+    // - Unauthorized access to other students' results
+    // - No authorization check - anyone can view anyone's grades
+
+    // ✅ SECURE: Use parameterized queries with proper authorization
     const [results] = await pool.execute(
       "SELECT r.*, e.title as exam_title FROM results r JOIN exams e ON r.exam_id = e.id WHERE r.student_id = ? ORDER BY r.created_at DESC",
       [student_id]
@@ -51,6 +63,18 @@ router.get("/student/:student_id", async (req, res) => {
 router.get("/exam/:exam_id", async (req, res) => {
   try {
     const { exam_id } = req.params;
+    
+    // ❌ VULNERABLE CODE (for educational purposes - DO NOT USE IN PRODUCTION)
+    // Insecure approach - string concatenation:
+    // const unsafeQuery = `SELECT r.*, u.username, u.email FROM results r JOIN users u ON r.student_id = u.id WHERE r.exam_id = ${exam_id}`;
+    // const [results] = await pool.execute(unsafeQuery);
+    // Problems:
+    // - SQL Injection: exam_id = "1 OR 1=1" returns results for all exams
+    // - exam_id = "1); DROP TABLE results; --" deletes all results
+    // - Unauthorized access to exam results from other professors
+    // - No role-based access control validation
+
+    // ✅ SECURE: Use parameterized queries with authorization checks
     const [results] = await pool.execute(
       "SELECT r.*, u.username, u.email FROM results r JOIN users u ON r.student_id = u.id WHERE r.exam_id = ? ORDER BY r.created_at DESC",
       [exam_id]
