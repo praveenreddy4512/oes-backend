@@ -3,6 +3,27 @@ import { pool } from "../db.js";
 
 const router = express.Router();
 
+// Get all submissions with related exam and student details
+router.get("/", async (req, res) => {
+  try {
+    const [submissions] = await pool.execute(
+      `SELECT s.*, u.username as student_name, u.email as student_email, 
+              e.title as exam_title, e.professor_id, 
+              COUNT(a.id) as total_answers,
+              SUM(IF(a.is_correct, 1, 0)) as correct_answers
+       FROM submissions s
+       JOIN users u ON s.student_id = u.id
+       JOIN exams e ON s.exam_id = e.id
+       LEFT JOIN answers a ON s.id = a.submission_id
+       GROUP BY s.id
+       ORDER BY s.submitted_at DESC`
+    );
+    res.json(submissions);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Start exam (create submission)
 router.post("/", async (req, res) => {
   try {
