@@ -52,12 +52,6 @@ router.post("/", async (req, res) => {
       [exam_id, question_text, option_a, option_b, option_c, option_d, correct_option, marks || 1]
     );
 
-    // Update exam total_questions
-    await pool.execute(
-      "UPDATE exams SET total_questions = (SELECT COUNT(*) FROM questions WHERE exam_id = ?) WHERE id = ?",
-      [exam_id, exam_id]
-    );
-
     res.json({ id: result.insertId, message: "Question added" });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -104,12 +98,6 @@ router.delete("/:id", async (req, res) => {
     
     // Re-enable foreign key checks
     await pool.execute("SET FOREIGN_KEY_CHECKS=1");
-
-    // Update exam total_questions count
-    await pool.execute(
-      "UPDATE exams SET total_questions = (SELECT COUNT(*) FROM questions WHERE exam_id = ?) WHERE id = ?",
-      [exam_id, exam_id]
-    );
 
     res.json({ message: "Question deleted" });
   } catch (error) {
