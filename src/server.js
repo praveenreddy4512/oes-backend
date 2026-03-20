@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import * as argon2 from "argon2";
+import session from "express-session";
 import { pool } from "./db.js";
 import examsRouter from "./routes/exams.js";
 import questionsRouter from "./routes/questions.js";
@@ -17,6 +18,20 @@ const port = Number(process.env.PORT || 5000);
 
 app.use(cors());
 app.use(express.json());
+
+// ✅ SECURE: Express session middleware configuration
+// Sessions store user authentication state server-side, preventing plaintext credentials in requests
+app.use(session({
+  secret: process.env.SESSION_SECRET || "your-super-secret-key-change-in-production", // ⚠️ Change this!
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,  // ✅ Prevents JavaScript from accessing cookie (XSS protection)
+    secure: process.env.NODE_ENV === "production",  // ✅ HTTPS only in production
+    sameSite: "lax",  // ✅ CSRF protection - cookies not sent to cross-site requests
+    maxAge: 1000 * 60 * 60 * 24  // 24 hours
+  }
+}));
 
 app.get("/api/health", async (_req, res) => {
   try {
@@ -129,6 +144,15 @@ app.post("/api/login", async (req, res) => {
 
     console.log("[✅ LOGIN SUCCESS] User authenticated:", username);
 
+    // ✅ SECURE: Store user data in session (server-side)
+    // Session ID is stored in cookie, actual user data stays on server
+    req.session.userId = user.id;
+    req.session.username = user.username;
+    req.session.role = user.role;
+    req.session.email = user.email;
+
+    console.log("[🔐 SESSION] Created session for user:", username, "Session ID:", req.sessionID);
+
     return res.json({
       message: "Login successful",
       user: {
@@ -137,11 +161,66 @@ app.post("/api/login", async (req, res) => {
         role: user.role,
         email: user.email
       },
+      sessionCreated: true
     });
   } catch (error) {
     console.error("[ERROR]", error.message);
     return res.status(500).json({ message: "Server error", error: error.message });
   }
+});
+
+// ✅ SECURE: Logout endpoint - destroys session
+app.post("/api/logout", (req, res) => {
+  if (!req.session.userId) {
+    return res.status(400).json({ message: "Not logged in" });
+  }
+
+  const username = req.session.username;
+  req.session.destroy((err) => {
+    if (err) {
+      console.error("[ERROR] Session destruction failed:", err.message);
+      return res.status(500).json({ message: "Logout failed" });
+    }
+
+    console.log("[🔓 LOGOUT] User session destroyed:", username);
+    res.json({ message: "Logged out successfully" });
+  });
+});
+
+// ✅ SECURE: Middleware to check if user is authenticated via session
+// This prevents access to protected routes without valid session
+const requireSession = (req, res, next) => {
+  // ❌ VULNERABLE: Without this middleware, endpoints would accept any request
+  // Attacker could:
+  // - Access protected data without authentication
+  // - Submit answers as another student
+  // - Grade exams without being professor
+
+  if (!req.session.userId) {
+    console.log("[🚫 UNAUTHORIZED] Attempted access without session");
+    return res.status(401).json({ message: "Not authenticated. Please login." });
+  }
+
+  // ✅ SECURE: User data from session (server-side, not client-controlled)
+  console.log("[✅ AUTH CHECK] User authenticated:", req.session.username);
+  next();
+};
+
+// ✅ SECURE: Get current user from session
+app.get("/api/auth/me", requireSession, (req, res) => {
+  res.json({
+    user: {
+      id: req.session.userId,
+      username: req.session.username,
+      role: req.session.role,
+      email: req.session.email
+    },
+    session: {
+      id: req.sessionID,
+      createdAt: req.session.cookie._expires ? new Date(req.session.cookie._expires - 1000 * 60 * 60 * 24) : null,
+      expiresAt: req.session.cookie._expires
+    }
+  });
 });
 
 // Route imports
