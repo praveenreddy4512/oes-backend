@@ -42,10 +42,15 @@ router.get("/:id", async (req, res) => {
 // Create exam (professor/admin)
 router.post("/", async (req, res) => {
   try {
-    const { title, description, professor_id, duration_minutes, passing_score } = req.body;
+    const { title, description, professor_id, duration_minutes } = req.body;
+    // Validate required fields
+    if (!title || !professor_id) {
+      return res.status(400).json({ error: "Title and professor_id are required" });
+    }
+    const duration = duration_minutes ? Number(duration_minutes) : 60;
     const [result] = await pool.execute(
-      "INSERT INTO exams (title, description, professor_id, duration_minutes, passing_score) VALUES (?, ?, ?, ?, ?)",
-      [title, description, professor_id, duration_minutes, passing_score]
+      "INSERT INTO exams (title, description, professor_id, duration_minutes) VALUES (?, ?, ?, ?)",
+      [title, description || "", professor_id, duration]
     );
     res.json({ id: result.insertId, message: "Exam created" });
   } catch (error) {
@@ -57,10 +62,11 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, duration_minutes, passing_score, status } = req.body;
+    const { title, description, duration_minutes, status } = req.body;
+    // Note: passing_score may not be in database schema, so not including it
     await pool.execute(
-      "UPDATE exams SET title = ?, description = ?, duration_minutes = ?, passing_score = ?, status = ? WHERE id = ?",
-      [title, description, duration_minutes, passing_score, status, id]
+      "UPDATE exams SET title = ?, description = ?, duration_minutes = ?, status = ? WHERE id = ?",
+      [title, description, duration_minutes, status, id]
     );
     res.json({ message: "Exam updated" });
   } catch (error) {

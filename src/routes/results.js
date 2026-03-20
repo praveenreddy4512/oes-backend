@@ -3,6 +3,26 @@ import { pool } from "../db.js";
 
 const router = express.Router();
 
+// ⚠️ IMPORTANT: This route MUST be first to avoid being matched by /:result_id
+// Get statistics for admin
+router.get("/", async (req, res) => {
+  try {
+    const [stats] = await pool.execute(`
+      SELECT 
+        COUNT(DISTINCT exam_id) as total_exams,
+        COUNT(DISTINCT student_id) as total_students,
+        COUNT(*) as total_results,
+        AVG(percentage) as avg_percentage,
+        SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_count,
+        SUM(CASE WHEN status = 'fail' THEN 1 ELSE 0 END) as fail_count
+      FROM results
+    `);
+    res.json(stats[0] || {});
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get results for a student
 router.get("/student/:student_id", async (req, res) => {
   try {
@@ -31,7 +51,7 @@ router.get("/exam/:exam_id", async (req, res) => {
   }
 });
 
-// Get single result details
+// Get single result details (MUST be last)
 router.get("/:result_id", async (req, res) => {
   try {
     const { result_id } = req.params;
@@ -57,25 +77,6 @@ router.get("/:result_id", async (req, res) => {
     );
 
     res.json({ ...result, answers });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get statistics for admin
-router.get("/", async (req, res) => {
-  try {
-    const [stats] = await pool.execute(`
-      SELECT 
-        COUNT(DISTINCT exam_id) as total_exams,
-        COUNT(DISTINCT student_id) as total_students,
-        COUNT(*) as total_results,
-        AVG(percentage) as avg_percentage,
-        SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_count,
-        SUM(CASE WHEN status = 'fail' THEN 1 ELSE 0 END) as fail_count
-      FROM results
-    `);
-    res.json(stats[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
