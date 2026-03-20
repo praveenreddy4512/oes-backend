@@ -111,9 +111,41 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Check if user exists
+    const [user] = await pool.execute("SELECT id FROM users WHERE id = ?", [id]);
+    if (!user.length) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Disable foreign key checks for cascading delete
+    await pool.execute("SET FOREIGN_KEY_CHECKS=0");
+    
+    // Delete user's related data (exams as professor)
+    const [exams] = await pool.execute("SELECT id FROM exams WHERE professor_id = ?", [id]);
+    for (const exam of exams) {
+      await pool.execute("DELETE FROM results WHERE exam_id = ?", [exam.id]);
+      await pool.execute("DELETE FROM answers WHERE submission_id IN (SELECT id FROM submissions WHERE exam_id = ?)", [exam.id]);
+      await pool.execute("DELETE FROM submissions WHERE exam_id = ?", [exam.id]);
+      await pool.execute("DELETE FROM questions WHERE exam_id = ?", [exam.id]);
+    }
+    await pool.execute("DELETE FROM exams WHERE professor_id = ?", [id]);
+    
+    // Delete user's submissions and related data
+    await pool.execute("DELETE FROM results WHERE student_id = ?", [id]);
+    await pool.execute("DELETE FROM answers WHERE submission_id IN (SELECT id FROM submissions WHERE student_id = ?)", [id]);
+    await pool.execute("DELETE FROM submissions WHERE student_id = ?", [id]);
+    
+    // Delete the user
     await pool.execute("DELETE FROM users WHERE id = ?", [id]);
-    res.json({ message: "User deleted" });
+    
+    // Re-enable foreign key checks
+    await pool.execute("SET FOREIGN_KEY_CHECKS=1");
+    
+    res.json({ message: "User deleted successfully" });
   } catch (error) {
+    // Re-enable foreign key checks in case of error
+    await pool.execute("SET FOREIGN_KEY_CHECKS=1").catch(() => {});
     res.status(500).json({ error: error.message });
   }
 });

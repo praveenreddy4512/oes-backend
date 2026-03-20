@@ -78,9 +78,32 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Check if exam exists
+    const [exam] = await pool.execute("SELECT id FROM exams WHERE id = ?", [id]);
+    if (!exam.length) {
+      return res.status(404).json({ error: "Exam not found" });
+    }
+
+    // Disable foreign key checks for cascading delete
+    await pool.execute("SET FOREIGN_KEY_CHECKS=0");
+    
+    // Delete related data
+    await pool.execute("DELETE FROM results WHERE exam_id = ?", [id]);
+    await pool.execute("DELETE FROM answers WHERE submission_id IN (SELECT id FROM submissions WHERE exam_id = ?)", [id]);
+    await pool.execute("DELETE FROM submissions WHERE exam_id = ?", [id]);
+    await pool.execute("DELETE FROM questions WHERE exam_id = ?", [id]);
+    
+    // Delete the exam
     await pool.execute("DELETE FROM exams WHERE id = ?", [id]);
-    res.json({ message: "Exam deleted" });
+    
+    // Re-enable foreign key checks
+    await pool.execute("SET FOREIGN_KEY_CHECKS=1");
+    
+    res.json({ message: "Exam deleted successfully" });
   } catch (error) {
+    // Re-enable foreign key checks in case of error
+    await pool.execute("SET FOREIGN_KEY_CHECKS=1").catch(() => {});
     res.status(500).json({ error: error.message });
   }
 });
