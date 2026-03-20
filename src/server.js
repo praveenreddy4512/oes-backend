@@ -35,8 +35,13 @@ console.log("[✅ SESSION] File-based session store configured");
 
 // ✅ SECURE: CORS configured to allow cookies/credentials
 // Without credentials: true, browsers won't send or return cookies
+// CRITICAL: origin MUST be a specific domain when using credentials: true
+// Using "*" with credentials: true causes browser to block Set-Cookie headers
+const allowedOrigin = process.env.FRONTEND_URL || "https://oes.frontend-drab.vercel.app";
+console.log(`[✅ CORS] Allowing requests from: ${allowedOrigin}`);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "*",  // Allow frontend origin
+  origin: allowedOrigin,  // ✅ Specific frontend domain (not "*")
   credentials: true,  // ✅ CRITICAL: Allow cookies to be sent/received
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
