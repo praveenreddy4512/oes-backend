@@ -7,6 +7,7 @@ import questionsRouter from "./routes/questions.js";
 import submissionsRouter from "./routes/submissions.js";
 import resultsRouter from "./routes/results.js";
 import usersRouter from "./routes/users.js";
+import settingsRouter from "./routes/settings.js";
 
 dotenv.config();
 
@@ -80,7 +81,9 @@ app.use("/api/questions", questionsRouter);
 app.use("/api/submissions", submissionsRouter);
 app.use("/api/results", resultsRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/settings", settingsRouter);
 
 app.listen(port, () => {
   console.log(`Backend running on http://localhost:${port}`);
 });
+
