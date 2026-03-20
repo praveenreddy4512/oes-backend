@@ -3,7 +3,8 @@ import { pool } from "../db.js";
 
 const router = express.Router();
 
-// ⚠️ IMPORTANT: This route MUST be first to avoid being matched by /:result_id
+// ⚠️ IMPORTANT: Route ordering matters - more specific routes first!
+
 // Get statistics for admin
 router.get("/", async (req, res) => {
   try {
@@ -32,7 +33,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Get results for a student
+// Get results for a student (more specific - check 'student' keyword)
 router.get("/student/:student_id", async (req, res) => {
   try {
     const { student_id } = req.params;
@@ -46,7 +47,7 @@ router.get("/student/:student_id", async (req, res) => {
   }
 });
 
-// Get results for exam (professor view)
+// Get results for exam (more specific - check 'exam' keyword)
 router.get("/exam/:exam_id", async (req, res) => {
   try {
     const { exam_id } = req.params;
@@ -60,12 +61,12 @@ router.get("/exam/:exam_id", async (req, res) => {
   }
 });
 
-// Get single result details (MUST be last)
+// Get single result details by ID (MUST be last - least specific)
 router.get("/:result_id", async (req, res) => {
   try {
     const { result_id } = req.params;
     const [results] = await pool.execute(
-      "SELECT r.*, e.title, s.id as submission_id FROM results r JOIN exams e ON r.exam_id = e.id JOIN submissions s ON r.submission_id = s.id WHERE r.id = ?",
+      "SELECT r.*, e.title as exam_title, s.id as submission_id FROM results r JOIN exams e ON r.exam_id = e.id JOIN submissions s ON r.submission_id = s.id WHERE r.id = ?",
       [result_id]
     );
 
