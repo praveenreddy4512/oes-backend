@@ -28,22 +28,37 @@ app.get("/api/health", async (_req, res) => {
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
 
-  // ⚠️ VULNERABILITY #1: No validation of empty password
-  if (!username) {
-    return res.status(400).json({ message: "Username is required" });
+  // ✅ SECURE: Validate both username and password
+  if (!username || !password) {
+    return res.status(400).json({ message: "Username and password are required" });
+  }
+
+  // ✅ SECURE: Input validation - prevent SQL injection
+  if (typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ message: "Invalid input format" });
+  }
+
+  // ✅ SECURE: Length validation
+  if (username.length > 50 || password.length > 50) {
+    return res.status(400).json({ message: "Username or password too long" });
   }
 
   try {
-    // ⚠️ VULNERABILITY #2: String concatenation allows SQL injection
-    // This is intentionally vulnerable for cybersecurity lab demonstration
-    // In production, ALWAYS use parameterized queries!
-    
-    const unsafeQuery = `SELECT id, username, role, email FROM users WHERE username = '${username}' AND password = '${password}' LIMIT 1`;
-    
-    console.log("[⚠️ VULNERABLE] Executing query:", unsafeQuery);
-    
-    // Using direct query instead of parameterized - THIS IS THE VULNERABILITY
-    const [rows] = await pool.query(unsafeQuery);
+    // ❌ VULNERABLE CODE (for educational reference - DO NOT USE IN PRODUCTION)
+    // const unsafeQuery = `SELECT id, username, role, email FROM users WHERE username = '${username}' AND password = '${password}' LIMIT 1`;
+    // This is vulnerable to SQL injection attacks like:
+    // - admin' OR '1'='1
+    // - student1' --
+    // - ' OR '1'='1' --
+
+    // ✅ SECURE: Use parameterized queries (prepared statements)
+    // This prevents SQL injection because user input is treated as data, not SQL code
+    const [rows] = await pool.execute(
+      "SELECT id, username, role, email FROM users WHERE username = ? AND password = ? LIMIT 1",
+      [username, password]
+    );
+
+    console.log("[✅ SECURE] Login attempt for user:", username);
 
     if (rows.length === 0) {
       return res.status(401).json({ message: "Invalid credentials" });
