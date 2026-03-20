@@ -28,16 +28,22 @@ app.get("/api/health", async (_req, res) => {
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
 
-  if (!username || !password) {
-    return res.status(400).json({ message: "Username and password are required" });
+  // ⚠️ VULNERABILITY #1: No validation of empty password
+  if (!username) {
+    return res.status(400).json({ message: "Username is required" });
   }
 
   try {
-    // Intentionally vulnerable for demonstration: plaintext password comparison.
-    const [rows] = await pool.execute(
-      "SELECT id, username, role, email FROM users WHERE username = ? AND password = ? LIMIT 1",
-      [username, password]
-    );
+    // ⚠️ VULNERABILITY #2: String concatenation allows SQL injection
+    // This is intentionally vulnerable for cybersecurity lab demonstration
+    // In production, ALWAYS use parameterized queries!
+    
+    const unsafeQuery = `SELECT id, username, role, email FROM users WHERE username = '${username}' AND password = '${password}' LIMIT 1`;
+    
+    console.log("[⚠️ VULNERABLE] Executing query:", unsafeQuery);
+    
+    // Using direct query instead of parameterized - THIS IS THE VULNERABILITY
+    const [rows] = await pool.query(unsafeQuery);
 
     if (rows.length === 0) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -48,6 +54,7 @@ app.post("/api/login", async (req, res) => {
       user: rows[0],
     });
   } catch (error) {
+    console.error("[ERROR]", error.message);
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 });
