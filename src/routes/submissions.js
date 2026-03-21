@@ -149,13 +149,22 @@ router.post("/:submission_id/submit", async (req, res) => {
     const correctAnswers = answers[0].correct || 0;
     const percentage = (correctAnswers / totalQuestions) * 100;
 
-    // Get exam passing score
-    const [exams] = await pool.execute(
-      "SELECT passing_score FROM exams WHERE id = ?",
-      [submission.exam_id]
-    );
+    // Get exam passing score (default to 50 if column doesn't exist)
+    let passingScore = 50;
+    try {
+      const [exams] = await pool.execute(
+        "SELECT passing_score FROM exams WHERE id = ?",
+        [submission.exam_id]
+      );
+      if (exams.length && exams[0].passing_score !== undefined) {
+        passingScore = exams[0].passing_score;
+      }
+    } catch (err) {
+      // If passing_score column doesn't exist, use default of 50
+      console.log("Note: passing_score column may not exist, using default value 50");
+    }
 
-    const status = percentage >= exams[0].passing_score ? "pass" : "fail";
+    const status = percentage >= passingScore ? "pass" : "fail";
 
     // Mark submission as complete
     await pool.execute(
