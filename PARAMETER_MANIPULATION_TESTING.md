@@ -245,7 +245,7 @@ Attack (Option A):
 **Step 6: Observe Response**
 
 Expected vulnerable response:
-```json
+```json 
 {
   "message": "Login successful",
   "user": {

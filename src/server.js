@@ -9,11 +9,22 @@ import { generateToken } from "./middleware/auth.js";
 import examsRouter from "./routes/exams.js";
 import questionsRouter from "./routes/questions.js";
 import submissionsRouter from "./routes/submissions.js";
+import examEventsRouter from "./routes/exam-events.js";
 import resultsRouter from "./routes/results.js";
 import usersRouter from "./routes/users.js";
 import settingsRouter from "./routes/settings.js";
+import { createExamEventsTable } from "./migrations/001_create_exam_events_table.js";
 
 dotenv.config();
+
+// ✅ Run database migrations on startup
+(async () => {
+  try {
+    await createExamEventsTable();
+  } catch (error) {
+    console.error('[❌ MIGRATION FAILED]', error.message);
+  }
+})();
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
@@ -277,6 +288,7 @@ app.get("/api/auth/me", requireSession, (req, res) => {
 app.use("/api/exams", examsRouter);
 app.use("/api/questions", questionsRouter);
 app.use("/api/submissions", submissionsRouter);
+app.use("/api/submissions", examEventsRouter);  // ✅ Event tracking routes
 app.use("/api/results", resultsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/settings", settingsRouter);
