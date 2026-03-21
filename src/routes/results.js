@@ -93,7 +93,7 @@ const studentResultsOwnershipMiddleware = async (req, res, next) => {
 
     // Students can only view their own results
     if (userRole === "student") {
-      if (parseInt(student_id) === userId) {
+      if (parseInt(student_id) === parseInt(userId)) {
         return next();
       }
       console.warn(
@@ -143,7 +143,7 @@ const examOwnershipMiddleware = async (req, res, next) => {
     // Professors can only view results for their own exams
     if (userRole === "professor") {
       const professorId = await getExamProfessor(exam_id);
-      if (professorId === userId) {
+      if (parseInt(professorId) === parseInt(userId)) {
         return next();
       }
       console.warn(
@@ -210,7 +210,7 @@ const resultOwnershipMiddleware = async (req, res, next) => {
 
     // Students can only view their own results
     if (userRole === "student") {
-      if (student_id === userId) {
+      if (parseInt(student_id) === parseInt(userId)) {
         return next();
       }
       console.warn(
@@ -224,7 +224,7 @@ const resultOwnershipMiddleware = async (req, res, next) => {
     // Professors can view results for their exams
     if (userRole === "professor") {
       const professorId = await getExamProfessor(exam_id);
-      if (professorId === userId) {
+      if (parseInt(professorId) === parseInt(userId)) {
         return next();
       }
       console.warn(
