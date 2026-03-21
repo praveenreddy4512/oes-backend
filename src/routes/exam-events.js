@@ -5,8 +5,37 @@
 
 import express from 'express';
 import { pool } from '../db.js';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
+
+/**
+ * Helper: Extract user info from session OR JWT token
+ * Checks both authentication methods
+ */
+const getUserFromRequest = (req) => {
+  let userId = null;
+  let userRole = null;
+
+  // Try session first
+  if (req.session?.userId) {
+    userId = req.session.userId;
+    userRole = req.session.role;
+  } 
+  // Try JWT token if no session
+  else if (req.headers.authorization) {
+    try {
+      const token = req.headers.authorization.split(' ')[1]; // Get token after "Bearer "
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      userId = decoded.id;
+      userRole = decoded.role;
+    } catch (error) {
+      // JWT verification failed, no user found
+    }
+  }
+
+  return { userId, userRole };
+};
 
 /**
  * Log an exam event
@@ -85,12 +114,11 @@ router.post('/:submissionId/events', async (req, res) => {
  */
 router.get('/:submissionId/events', async (req, res) => {
   const { submissionId } = req.params;
-  const userId = req.session?.userId;
-  const userRole = req.session?.role;
+  const { userId, userRole } = getUserFromRequest(req);
 
   // ✅ SECURE: Check if user is authenticated
   if (!userId || !userRole) {
-    console.log('[🚫 UNAUTHENTICATED] No session found - user must login first');
+    console.log('[🚫 UNAUTHENTICATED] No session or JWT found - user must login first');
     return res.status(401).json({ error: 'Not authenticated - please login first' });
   }
 
@@ -165,12 +193,11 @@ router.get('/:submissionId/events', async (req, res) => {
  */
 router.get('/:submissionId/events/summary', async (req, res) => {
   const { submissionId } = req.params;
-  const userId = req.session?.userId;
-  const userRole = req.session?.role;
+  const { userId, userRole } = getUserFromRequest(req);
 
   // ✅ SECURE: Check if user is authenticated
   if (!userId || !userRole) {
-    console.log('[🚫 UNAUTHENTICATED] No session found - user must login first');
+    console.log('[🚫 UNAUTHENTICATED] No session or JWT found - user must login first');
     return res.status(401).json({ error: 'Not authenticated - please login first' });
   }
 
@@ -248,12 +275,11 @@ router.get('/:submissionId/events/summary', async (req, res) => {
  */
 router.get('/exam/:examId', async (req, res) => {
   const { examId } = req.params;
-  const userId = req.session?.userId;
-  const userRole = req.session?.role;
+  const { userId, userRole } = getUserFromRequest(req);
 
   // ✅ SECURE: Check if user is authenticated
   if (!userId || !userRole) {
-    console.log('[🚫 UNAUTHENTICATED] No session found - user must login first');
+    console.log('[🚫 UNAUTHENTICATED] No session or JWT found - user must login first');
     return res.status(401).json({ error: 'Not authenticated - please login first' });
   }
 
