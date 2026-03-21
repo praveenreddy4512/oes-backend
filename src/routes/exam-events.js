@@ -227,15 +227,13 @@ router.get('/:submissionId/events/summary', async (req, res) => {
   }
 });
 
-export default router;
-
 /**
  * PROFESSOR/ADMIN VIEWS
  * Get all submissions with suspicious activity for an exam
- * GET /api/exams/:examId/submissions/events
+ * GET /api/submissions/exam/:examId
  * Shows list of all student submissions with activity summary
  */
-router.get('/exam/:examId/submissions/events', async (req, res) => {
+router.get('/exam/:examId', async (req, res) => {
   const { examId } = req.params;
   const userId = req.session?.userId;
   const userRole = req.session?.role;
@@ -303,3 +301,5 @@ router.get('/exam/:examId/submissions/events', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch exam events', details: error.message });
   }
 });
+
+export default router;
