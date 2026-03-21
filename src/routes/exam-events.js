@@ -270,11 +270,21 @@ router.get('/exam/:examId', async (req, res) => {
 
     const exam = examData[0];
     const isAdmin = userRole === 'admin';
-    
     const isProfessor = userRole === 'professor' && exam.professor_id === userId;
 
     if (!isAdmin && !isProfessor) {
       console.log(`[🚫 UNAUTHORIZED] User ${userId} (${userRole}) tried to view exam ${examId} events`);
+      return res.status(403).json({ error: 'Unauthorized - only professors and admins can view exam events' });
+    }
+
+    // Get all submissions for this exam with event counts
+    const [submissions] = await pool.execute(
+      `SELECT 
+        s.id as submission_id,
+        s.exam_id,
+        s.student_id,
+        u.username as student_name,
+        u.email as student_email,
         s.submitted_at,
         s.is_submitted,
         COUNT(ee.id) as total_events,
