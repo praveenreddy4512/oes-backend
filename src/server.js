@@ -13,18 +13,10 @@ import examEventsRouter from "./routes/exam-events.js";
 import resultsRouter from "./routes/results.js";
 import usersRouter from "./routes/users.js";
 import settingsRouter from "./routes/settings.js";
-import { createExamEventsTable } from "./migrations/001_create_exam_events_table.js";
+// ✅ Migration already completed - exam_events table exists in MySQL
+// Removed: import { createExamEventsTable } from "./migrations/001_create_exam_events_table.js";
 
 dotenv.config();
-
-// ✅ Run database migrations on startup
-(async () => {
-  try {
-    await createExamEventsTable();
-  } catch (error) {
-    console.error('[❌ MIGRATION FAILED]', error.message);
-  }
-})();
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
