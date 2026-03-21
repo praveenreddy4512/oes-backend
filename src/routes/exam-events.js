@@ -26,7 +26,7 @@ const getUserFromRequest = (req) => {
   else if (req.headers.authorization) {
     try {
       const token = req.headers.authorization.split(' ')[1]; // Get token after "Bearer "
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-this-in-production');
       userId = decoded.id;
       userRole = decoded.role;
     } catch (error) {

@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import * as argon2 from "argon2";
+import jwt from "jsonwebtoken";
 import session from "express-session";
 import FileStore from "session-file-store";
 import { pool } from "./db.js";
@@ -240,8 +241,8 @@ app.post("/api/logout", (req, res) => {
   });
 });
 
-// ✅ SECURE: Middleware to check if user is authenticated via session
-// This prevents access to protected routes without valid session
+// ✅ SECURE: Middleware to check if user is authenticated via session OR JWT
+// Supports both authentication methods for flexibility
 const requireSession = (req, res, next) => {
   // ❌ VULNERABLE: Without this middleware, endpoints would accept any request
   // Attacker could:
@@ -249,14 +250,28 @@ const requireSession = (req, res, next) => {
   // - Submit answers as another student
   // - Grade exams without being professor
 
-  if (!req.session.userId) {
-    console.log("[🚫 UNAUTHORIZED] Attempted access without session");
-    return res.status(401).json({ message: "Not authenticated. Please login." });
+  // Try session first
+  if (req.session?.userId) {
+    console.log("[✅ AUTH CHECK] User authenticated via session:", req.session.username);
+    return next();
   }
 
-  // ✅ SECURE: User data from session (server-side, not client-controlled)
-  console.log("[✅ AUTH CHECK] User authenticated:", req.session.username);
-  next();
+  // Try JWT token if no session
+  if (req.headers.authorization) {
+    try {
+      const token = req.headers.authorization.split(' ')[1]; // Get token after "Bearer "
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-this-in-production');
+      console.log("[✅ AUTH CHECK] User authenticated via JWT:", decoded.username);
+      // Optionally store decoded data in req for use in routes
+      req.user = decoded;
+      return next();
+    } catch (error) {
+      console.log("[🚫 INVALID JWT] Token verification failed:", error.message);
+    }
+  }
+
+  console.log("[🚫 UNAUTHORIZED] Attempted access without session or JWT");
+  return res.status(401).json({ message: "Not authenticated. Please login." });
 };
 
 // ✅ SECURE: Get current user from session
