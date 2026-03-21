@@ -167,10 +167,22 @@ router.post("/:submission_id/submit", async (req, res) => {
     const status = percentage >= passingScore ? "pass" : "fail";
 
     // Mark submission as complete
-    await pool.execute(
-      "UPDATE submissions SET is_submitted = TRUE, completed_at = NOW() WHERE id = ?",
-      [submission_id]
-    );
+    try {
+      await pool.execute(
+        "UPDATE submissions SET is_submitted = TRUE, completed_at = NOW() WHERE id = ?",
+        [submission_id]
+      );
+    } catch (updateErr) {
+      // If completed_at column doesn't exist, try without it
+      if (updateErr.message.includes("completed_at")) {
+        await pool.execute(
+          "UPDATE submissions SET is_submitted = TRUE WHERE id = ?",
+          [submission_id]
+        );
+      } else {
+        throw updateErr;
+      }
+    }
 
     // Create result record
     await pool.execute(
