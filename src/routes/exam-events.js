@@ -79,13 +79,42 @@ router.post('/:submissionId/events', async (req, res) => {
 });
 
 /**
- * Get all events for a submission
+ * Get all events for a submission (Professor/Admin only)
  * GET /api/submissions/:submissionId/events
+ * Requires: User must be admin OR professor who created the exam
  */
 router.get('/:submissionId/events', async (req, res) => {
   const { submissionId } = req.params;
+  const userId = req.session?.userId;
+  const userRole = req.session?.role;
 
   try {
+    // Get submission details and exam info
+    const [submissionData] = await pool.execute(
+      `SELECT s.id, s.exam_id, e.professor_id, u.id as student_id, u.username as student_name
+       FROM submissions s
+       JOIN exams e ON s.exam_id = e.id
+       JOIN users u ON s.student_id = u.id
+       WHERE s.id = ?`,
+      [submissionId]
+    );
+
+    if (!submissionData.length) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    const submission = submissionData[0];
+
+    // ✅ SECURE: Check authorization - only admin or professor who created exam can view
+    const isAdmin = userRole === 'admin';
+    const isProfessor = userRole === 'professor' && submission.professor_id === userId;
+    
+    if (!isAdmin && !isProfessor) {
+      console.log(`[🚫 UNAUTHORIZED] User ${userId} tried to view events for submission ${submissionId}`);
+      return res.status(403).json({ error: 'Unauthorized - only professors and admins can view student events' });
+    }
+
+    // Fetch all events for this submission
     const [events] = await pool.execute(
       `SELECT 
         id,
@@ -106,9 +135,15 @@ router.get('/:submissionId/events', async (req, res) => {
       event_details: event.event_details ? JSON.parse(event.event_details) : null
     }));
 
+    console.log(`[✅ EVENTS VIEWED] User ${userId} (${userRole}) viewed ${parsedEvents.length} events for student ${submission.student_name}`);
+
     res.json({
       submissionId,
+      studentName: submission.student_name,
+      studentId: submission.student_id,
+      examId: submission.exam_id,
       totalEvents: parsedEvents.length,
+      viewedBy: `${userRole} (ID: ${userId})`,
       events: parsedEvents
     });
   } catch (error) {
@@ -118,13 +153,40 @@ router.get('/:submissionId/events', async (req, res) => {
 });
 
 /**
- * Get event summary statistics for a submission
+ * Get event summary statistics for a submission (Professor/Admin only)
  * GET /api/submissions/:submissionId/events/summary
+ * Shows: tab switches, page refreshes, time per question, suspicious activity
  */
 router.get('/:submissionId/events/summary', async (req, res) => {
   const { submissionId } = req.params;
+  const userId = req.session?.userId;
+  const userRole = req.session?.role;
 
   try {
+    // Get submission details and exam info
+    const [submissionData] = await pool.execute(
+      `SELECT s.id, s.exam_id, e.professor_id, u.id as student_id, u.username as student_name
+       FROM submissions s
+       JOIN exams e ON s.exam_id = e.id
+       JOIN users u ON s.student_id = u.id
+       WHERE s.id = ?`,
+      [submissionId]
+    );
+
+    if (!submissionData.length) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    const submission = submissionData[0];
+
+    // ✅ SECURE: Check authorization
+    const isAdmin = userRole === 'admin';
+    const isProfessor = userRole === 'professor' && submission.professor_id === userId;
+    
+    if (!isAdmin && !isProfessor) {
+      return res.status(403).json({ error: 'Unauthorized - only professors and admins can view student events' });
+    }
+
     const [results] = await pool.execute(
       `SELECT 
         event_type,
@@ -143,13 +205,20 @@ router.get('/:submissionId/events/summary', async (req, res) => {
     const pageRefreshes = results.find(r => r.event_type === 'page_refreshed')?.count || 0;
     const suspiciousLevel = tabSwitches > 3 || pageRefreshes > 2 ? 'HIGH' : 'LOW';
 
+    console.log(`[✅ SUMMARY VIEWED] User ${userId} (${userRole}) viewed summary for student ${submission.student_name} - Suspicious: ${suspiciousLevel}`);
+
     res.json({
       submissionId,
+      studentName: submission.student_name,
+      studentId: submission.student_id,
+      examId: submission.exam_id,
+      viewedBy: `${userRole} (ID: ${userId})`,
       summary: results,
       suspiciousActivity: {
         tabSwitches,
         pageRefreshes,
-        suspicionLevel: suspiciousLevel
+        suspicionLevel: suspiciousLevel,
+        recommendation: suspiciousLevel === 'HIGH' ? 'Consider reviewing this submission more carefully' : 'No suspicious activity detected'
       }
     });
   } catch (error) {
@@ -159,3 +228,78 @@ router.get('/:submissionId/events/summary', async (req, res) => {
 });
 
 export default router;
+
+/**
+ * PROFESSOR/ADMIN VIEWS
+ * Get all submissions with suspicious activity for an exam
+ * GET /api/exams/:examId/submissions/events
+ * Shows list of all student submissions with activity summary
+ */
+router.get('/exam/:examId/submissions/events', async (req, res) => {
+  const { examId } = req.params;
+  const userId = req.session?.userId;
+  const userRole = req.session?.role;
+
+  try {
+    // Verify user is admin or professor who created this exam
+    const [examData] = await pool.execute(
+      `SELECT id, title, professor_id FROM exams WHERE id = ?`,
+      [examId]
+    );
+
+    if (!examData.length) {
+      return res.status(404).json({ error: 'Exam not found' });
+    }
+
+    const exam = examData[0];
+    const isAdmin = userRole === 'admin';
+    const isProfessor = userRole === 'professor' && exam.professor_id === userId;
+
+    if (!isAdmin && !isProfessor) {
+      return res.status(403).json({ error: 'Unauthorized - only professors and admins can view exam events' });
+    }
+
+    // Get all submissions for this exam with event counts
+    const [submissions] = await pool.execute(
+      `SELECT 
+        s.id as submission_id,
+        s.exam_id,
+        s.student_id,
+        u.username as student_name,
+        u.email as student_email,
+        s.submitted_at,
+        s.is_submitted,
+        COUNT(ee.id) as total_events,
+        SUM(CASE WHEN ee.event_type = 'tab_switched' THEN 1 ELSE 0 END) as tab_switches,
+        SUM(CASE WHEN ee.event_type = 'page_refreshed' THEN 1 ELSE 0 END) as page_refreshes,
+        SUM(CASE WHEN ee.event_type = 'answer_saved' THEN 1 ELSE 0 END) as answers_saved,
+        CASE 
+          WHEN SUM(CASE WHEN ee.event_type = 'tab_switched' THEN 1 ELSE 0 END) > 3 
+               OR SUM(CASE WHEN ee.event_type = 'page_refreshed' THEN 1 ELSE 0 END) > 2
+          THEN 'HIGH'
+          ELSE 'LOW'
+        END as suspicious_level
+       FROM submissions s
+       JOIN users u ON s.student_id = u.id
+       LEFT JOIN exam_events ee ON s.id = ee.submission_id
+       WHERE s.exam_id = ?
+       GROUP BY s.id
+       ORDER BY suspicious_level DESC, tab_switches DESC`,
+      [examId]
+    );
+
+    console.log(`[✅ EXAM EVENTS VIEWED] User ${userId} (${userRole}) viewed ${submissions.length} submissions for exam ${exam.title}`);
+
+    res.json({
+      examId,
+      examTitle: exam.title,
+      viewedBy: `${userRole} (ID: ${userId})`,
+      totalSubmissions: submissions.length,
+      highSuspicion: submissions.filter(s => s.suspicious_level === 'HIGH').length,
+      submissions: submissions
+    });
+  } catch (error) {
+    console.error('[❌ EXAM EVENTS ERROR]', error.message);
+    res.status(500).json({ error: 'Failed to fetch exam events', details: error.message });
+  }
+});
