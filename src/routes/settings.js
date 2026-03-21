@@ -2,12 +2,16 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { authMiddleware, requireRole } from "../middleware/auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const settingsFile = path.join(__dirname, "../../settings.json");
 
 const router = express.Router();
+
+// 🔐 Apply JWT authentication to all settings routes
+router.use(authMiddleware);
 
 // Default settings
 const defaultSettings = {
@@ -40,7 +44,7 @@ const saveSettings = (settings) => {
   }
 };
 
-// Get all settings
+// Get all settings (any authenticated user can view)
 router.get("/", async (req, res) => {
   try {
     const settings = loadSettings();
@@ -50,8 +54,8 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Update settings
-router.put("/", async (req, res) => {
+// Update settings (admin only)
+router.put("/", requireRole("admin"), async (req, res) => {
   try {
     const { system_name, default_exam_duration, default_passing_score, max_exam_attempts } = req.body;
 

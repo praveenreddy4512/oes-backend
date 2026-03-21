@@ -1,11 +1,15 @@
 import express from "express";
 import * as argon2 from "argon2";
 import { pool } from "../db.js";
+import { authMiddleware, requireRole } from "../middleware/auth.js";
 
 const router = express.Router();
 
+// 🔐 Apply JWT authentication to all routes
+router.use(authMiddleware);
+
 // Get all users (admin only)
-router.get("/", async (req, res) => {
+router.get("/", requireRole("admin"), async (req, res) => {
   try {
     const [users] = await pool.execute(
       "SELECT id, username, role, email, created_at FROM users ORDER BY created_at DESC"
@@ -16,10 +20,16 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Get user by ID
+// Get user by ID (users can view themselves, admins can view anyone)
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 🔐 Check if user is viewing their own profile or is admin
+    if (req.user.id !== parseInt(id) && req.user.role !== "admin") {
+      return res.status(403).json({ error: "Access denied - cannot view other users" });
+    }
+    
     const [users] = await pool.execute(
       "SELECT id, username, role, email, created_at FROM users WHERE id = ?",
       [id]
@@ -35,8 +45,8 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// Create user (admin)
-router.post("/", async (req, res) => {
+// Create user (admin only)
+router.post("/", requireRole("admin"), async (req, res) => {
   try {
     const { username, password, role, email } = req.body;
 
@@ -81,10 +91,21 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Update user
+// Update user (users can update themselves, admins can update anyone)
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 🔐 Check if user is updating their own profile or is admin
+    if (req.user.id !== parseInt(id) && req.user.role !== "admin") {
+      return res.status(403).json({ error: "Access denied - cannot update other users" });
+    }
+    
+    // 🔐 Prevent users from changing their own role (admins can change roles)
+    if (req.user.role !== "admin" && req.body.role) {
+      return res.status(403).json({ error: "Only admins can change roles" });
+    }
+    
     const { username, password, role, email } = req.body;
 
     if (role && !["student", "professor", "admin"].includes(role)) {
@@ -142,8 +163,8 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// Delete user (admin)
-router.delete("/:id", async (req, res) => {
+// Delete user (admin only)
+router.delete("/:id", requireRole("admin"), async (req, res) => {
   try {
     const { id } = req.params;
     
