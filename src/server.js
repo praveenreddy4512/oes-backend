@@ -5,6 +5,7 @@ import * as argon2 from "argon2";
 import session from "express-session";
 import FileStore from "session-file-store";
 import { pool } from "./db.js";
+import { generateToken } from "./middleware/auth.js";
 import examsRouter from "./routes/exams.js";
 import questionsRouter from "./routes/questions.js";
 import submissionsRouter from "./routes/submissions.js";
@@ -177,6 +178,10 @@ app.post("/api/login", async (req, res) => {
 
     console.log("[✅ LOGIN SUCCESS] User authenticated:", username);
 
+    // 🔐 JWT: Generate JSON Web Token (HMAC-SHA256)
+    const token = generateToken(user);
+    console.log(`[🔐 JWT] Token generated for user: ${username}`);
+
     // ✅ SECURE: Store user data in session (server-side)
     // Session ID is stored in cookie, actual user data stays on server
     req.session.userId = user.id;
@@ -198,6 +203,7 @@ app.post("/api/login", async (req, res) => {
 
       return res.json({
         message: "Login successful",
+        token: token,  // 🔐 JWT token for stateless authentication
         user: {
           id: user.id,
           username: user.username,

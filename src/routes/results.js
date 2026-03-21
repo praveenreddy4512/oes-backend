@@ -1,7 +1,11 @@
 import express from "express";
 import { pool } from "../db.js";
+import { authMiddleware } from "../middleware/auth.js";
 
 const router = express.Router();
+
+// 🔐 SECURITY: Protect results routes with JWT authentication
+router.use(authMiddleware);
 
 // ⚠️ IMPORTANT: Route ordering matters - more specific routes first!
 

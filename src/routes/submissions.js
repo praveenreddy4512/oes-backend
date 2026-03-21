@@ -1,7 +1,12 @@
 import express from "express";
 import { pool } from "../db.js";
+import { authMiddleware, preventIDOR, getStudentSubmissionUser } from "../middleware/auth.js";
 
 const router = express.Router();
+
+// 🔐 SECURITY: Apply JWT authentication to all submission routes
+// All routes require valid JWT token in Authorization header
+router.use(authMiddleware);
 
 // Get all submissions with related exam and student details
 router.get("/", async (req, res) => {
@@ -70,28 +75,41 @@ router.post("/", async (req, res) => {
 });
 
 // Get submission details
-router.get("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const [submissions] = await pool.execute(
-      "SELECT * FROM submissions WHERE id = ?",
-      [id]
-    );
-
-    if (!submissions.length) {
-      return res.status(404).json({ error: "Submission not found" });
+// 🔐 SECURITY: Prevent IDOR - users can only get their own submissions (students)
+// Professors and admins can access any submission
+router.get("/:id", 
+  async (req, res, next) => {
+    // Check if user is student - apply IDOR protection
+    if (req.user.role === "student") {
+      return preventIDOR("id", async (submissionId) => {
+        return await getStudentSubmissionUser(submissionId, pool);
+      })(req, res, next);
     }
+    next();
+  },
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [submissions] = await pool.execute(
+        "SELECT * FROM submissions WHERE id = ?",
+        [id]
+      );
 
-    const [answers] = await pool.execute(
-      "SELECT a.*, q.question_text, q.correct_option FROM answers a JOIN questions q ON a.question_id = q.id WHERE a.submission_id = ?",
-      [id]
-    );
+      if (!submissions.length) {
+        return res.status(404).json({ error: "Submission not found" });
+      }
 
-    res.json({ ...submissions[0], answers });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+      const [answers] = await pool.execute(
+        "SELECT a.*, q.question_text, q.correct_option FROM answers a JOIN questions q ON a.question_id = q.id WHERE a.submission_id = ?",
+        [id]
+      );
+
+      res.json({ ...submissions[0], answers });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
   }
-});
+);
 
 // Submit answer
 router.post("/:submission_id/answer", async (req, res) => {

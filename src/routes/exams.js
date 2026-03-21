@@ -1,7 +1,11 @@
 import express from "express";
 import { pool } from "../db.js";
+import { authMiddleware, requireRole } from "../middleware/auth.js";
 
 const router = express.Router();
+
+// 🔐 SECURITY: Protect exams routes with JWT authentication
+router.use(authMiddleware);
 
 // Get all exams (with filters for role)
 router.get("/", async (req, res) => {
