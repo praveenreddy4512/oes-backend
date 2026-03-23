@@ -166,24 +166,28 @@ router.post("/:submission_id/submit", async (req, res) => {
 
     const totalQuestions = answers[0].total;
     const correctAnswers = answers[0].correct || 0;
-    const percentage = (correctAnswers / totalQuestions) * 100;
+    const percentage = Math.round((correctAnswers / totalQuestions) * 100 * 100) / 100; // Round to 2 decimals
 
-    // Get exam passing score (default to 50 if column doesn't exist)
-    let passingScore = 50;
+    // Get exam passing score (default to 40 if column doesn't exist or not set)
+    let passingScore = 40;
     try {
       const [exams] = await pool.execute(
         "SELECT passing_score FROM exams WHERE id = ?",
         [submission.exam_id]
       );
-      if (exams.length && exams[0].passing_score !== undefined) {
-        passingScore = exams[0].passing_score;
+      if (exams.length && exams[0].passing_score !== null && exams[0].passing_score !== undefined) {
+        passingScore = Number(exams[0].passing_score) || 40;
       }
     } catch (err) {
-      // If passing_score column doesn't exist, use default of 50
-      console.log("Note: passing_score column may not exist, using default value 50");
+      // If passing_score column doesn't exist, use default of 40
+      console.log("[INFO] passing_score column may not exist, using default value 40");
     }
 
+    // ✅ FIXED: Better status calculation
+    // Status should be "pass" if percentage >= passing_score, otherwise "fail"
     const status = percentage >= passingScore ? "pass" : "fail";
+    
+    console.log(`[GRADING] Exam ID: ${submission.exam_id}, Student: ${submission.student_id}, Score: ${correctAnswers}/${totalQuestions}, Percentage: ${percentage}%, PassingScore: ${passingScore}%, Status: ${status}`);
 
     // Mark submission as complete
     try {
