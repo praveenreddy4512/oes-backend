@@ -127,7 +127,8 @@ router.post("/:submission_id/answer", async (req, res) => {
       return res.status(404).json({ error: "Question not found" });
     }
 
-    const is_correct = selected_option === questions[0].correct_option;
+    // ✅ FIX: Case-insensitive comparison (student sends lowercase, DB might have uppercase)
+    const is_correct = (selected_option || "").toLowerCase() === (questions[0].correct_option || "").toLowerCase();
 
     const [result] = await pool.execute(
       "INSERT INTO answers (submission_id, question_id, selected_option, is_correct) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE selected_option = ?, is_correct = ?",
