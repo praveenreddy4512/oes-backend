@@ -54,10 +54,10 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// Create exam (professor/admin)
+// Create exam (professor/admin) - with optional group assignment
 router.post("/", async (req, res) => {
   try {
-    const { title, description, professor_id, duration_minutes, shuffle_questions, shuffle_options } = req.body;
+    const { title, description, professor_id, duration_minutes, shuffle_questions, shuffle_options, groupIds } = req.body;
     // Validate required fields
     if (!title || !professor_id) {
       return res.status(400).json({ error: "Title and professor_id are required" });
@@ -71,7 +71,20 @@ router.post("/", async (req, res) => {
       "INSERT INTO exams (title, description, professor_id, duration_minutes, shuffle_questions, shuffle_options) VALUES (?, ?, ?, ?, ?, ?)",
       [title, description || "", professor_id, duration, shuffleQuestions, shuffleOptions]
     );
-    res.json({ id: result.insertId, message: "Exam created" });
+    
+    const examId = result.insertId;
+    
+    // Add exam to groups if provided
+    if (Array.isArray(groupIds) && groupIds.length > 0) {
+      for (const groupId of groupIds) {
+        await pool.execute(
+          "INSERT INTO exam_groups (exam_id, group_id) VALUES (?, ?)",
+          [examId, groupId]
+        );
+      }
+    }
+    
+    res.json({ id: examId, message: "Exam created" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -110,6 +123,7 @@ router.delete("/:id", async (req, res) => {
     await pool.execute("SET FOREIGN_KEY_CHECKS=0");
     
     // Delete related data
+    await pool.execute("DELETE FROM exam_groups WHERE exam_id = ?", [id]);
     await pool.execute("DELETE FROM results WHERE exam_id = ?", [id]);
     await pool.execute("DELETE FROM answers WHERE submission_id IN (SELECT id FROM submissions WHERE exam_id = ?)", [id]);
     await pool.execute("DELETE FROM submissions WHERE exam_id = ?", [id]);
@@ -125,6 +139,87 @@ router.delete("/:id", async (req, res) => {
   } catch (error) {
     // Re-enable foreign key checks in case of error
     await pool.execute("SET FOREIGN_KEY_CHECKS=1").catch(() => {});
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== GROUP MANAGEMENT ENDPOINTS =====
+
+// Get exam groups
+router.get("/:examId/groups", async (req, res) => {
+  try {
+    const { examId } = req.params;
+    
+    const [groups] = await pool.execute(
+      "SELECT g.id, g.name, g.description FROM groups g JOIN exam_groups eg ON g.id = eg.group_id WHERE eg.exam_id = ?",
+      [examId]
+    );
+    
+    res.json(groups);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add groups to exam
+router.post("/:examId/groups", async (req, res) => {
+  try {
+    const { examId } = req.params;
+    const { groupIds } = req.body;
+    
+    if (!Array.isArray(groupIds) || groupIds.length === 0) {
+      return res.status(400).json({ error: "groupIds array is required" });
+    }
+    
+    for (const groupId of groupIds) {
+      await pool.execute(
+        "INSERT IGNORE INTO exam_groups (exam_id, group_id) VALUES (?, ?)",
+        [examId, groupId]
+      );
+    }
+    
+    res.json({ message: "Groups added to exam" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove group from exam
+router.delete("/:examId/groups/:groupId", async (req, res) => {
+  try {
+    const { examId, groupId } = req.params;
+    
+    await pool.execute(
+      "DELETE FROM exam_groups WHERE exam_id = ? AND group_id = ?",
+      [examId, groupId]
+    );
+    
+    res.json({ message: "Group removed from exam" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get exams filtered by student's groups (for student dashboard)
+router.get("/student/exams/by-group", async (req, res) => {
+  try {
+    // Get exams that student's groups have access to
+    const [exams] = await pool.execute(
+      `SELECT DISTINCT e.*, u.username as professor_name 
+       FROM exams e 
+       JOIN users u ON e.professor_id = u.id 
+       WHERE e.id IN (
+         SELECT eg.exam_id FROM exam_groups eg 
+         WHERE eg.group_id IN (
+           SELECT group_id FROM group_members WHERE student_id = ?
+         )
+       ) 
+       ORDER BY e.created_at DESC`,
+      [req.user.id]
+    );
+    
+    res.json(exams);
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });

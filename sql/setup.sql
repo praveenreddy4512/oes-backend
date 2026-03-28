@@ -75,6 +75,47 @@ CREATE TABLE IF NOT EXISTS results (
   FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- ===== GROUPS TABLES FOR ACCESS CONTROL =====
+CREATE TABLE IF NOT EXISTS groups (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL UNIQUE,
+  description TEXT,
+  created_by INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_name (name),
+  INDEX idx_created_by (created_by)
+);
+
+CREATE TABLE IF NOT EXISTS group_members (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  group_id INT NOT NULL,
+  student_id INT NOT NULL,
+  added_by INT NOT NULL,
+  added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_group_student (group_id, student_id),
+  INDEX idx_group (group_id),
+  INDEX idx_student (student_id)
+);
+
+CREATE TABLE IF NOT EXISTS exam_groups (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  exam_id INT NOT NULL,
+  group_id INT NOT NULL,
+  
+  FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+  FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+  UNIQUE KEY unique_exam_group (exam_id, group_id),
+  INDEX idx_exam (exam_id),
+  INDEX idx_group (group_id)
+);
+
 -- Intentionally plaintext passwords for this insecure demonstration step.
 INSERT INTO users (username, password, role, email) VALUES
   ('student1', 'student123', 'student', 'student1@exam.com'),
@@ -104,3 +145,30 @@ INSERT INTO questions (exam_id, question_text, option_a, option_b, option_c, opt
   (2, 'What is the speed of light?', '3x10^8 m/s', '2x10^8 m/s', '5x10^8 m/s', '1x10^8 m/s', 'a', 1)
 ON DUPLICATE KEY UPDATE
   question_text = VALUES(question_text);
+
+-- Seed some groups
+INSERT INTO groups (name, description, created_by) VALUES
+  ('MTech CSE Section 1', 'Master of Technology - Computer Science & Engineering - Section 1', 5),
+  ('MTech CSE Section 2', 'Master of Technology - Computer Science & Engineering - Section 2', 5),
+  ('BTech CE Batch 2024', 'Bachelor of Technology - Civil Engineering - Batch 2024', 5)
+ON DUPLICATE KEY UPDATE
+  name = VALUES(name),
+  description = VALUES(description);
+
+-- Seed group members (add students to groups)
+INSERT INTO group_members (group_id, student_id, added_by) VALUES
+  (1, 1, 5),
+  (1, 2, 5),
+  (2, 1, 5),
+  (3, 2, 5)
+ON DUPLICATE KEY UPDATE
+  added_at = CURRENT_TIMESTAMP;
+
+-- Seed exam-group associations
+INSERT INTO exam_groups (exam_id, group_id) VALUES
+  (1, 1),
+  (1, 2),
+  (2, 1),
+  (3, 3)
+ON DUPLICATE KEY UPDATE
+  group_id = VALUES(group_id);

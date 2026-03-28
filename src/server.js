@@ -14,6 +14,7 @@ import examEventsRouter from "./routes/exam-events.js";
 import resultsRouter from "./routes/results.js";
 import usersRouter from "./routes/users.js";
 import settingsRouter from "./routes/settings.js";
+import groupsRouter from "./routes/groups.js";
 // ✅ Migration already completed - exam_events table exists in MySQL
 // Removed: import { createExamEventsTable } from "./migrations/001_create_exam_events_table.js";
 
@@ -299,6 +300,7 @@ app.use("/api/submissions", examEventsRouter);  // ✅ Event tracking routes
 app.use("/api/results", resultsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/settings", settingsRouter);
+app.use("/api/groups", groupsRouter);  // ✅ Groups management routes
 
 app.listen(port, () => {
   console.log(`Backend running on http://localhost:${port}`);
