@@ -95,15 +95,29 @@ router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, duration_minutes, status, shuffle_questions, shuffle_options } = req.body;
+    
+    // Validate exam exists
+    const [exam] = await pool.execute("SELECT id FROM exams WHERE id = ?", [id]);
+    if (!exam.length) {
+      return res.status(404).json({ error: "Exam not found" });
+    }
+    
+    if (!title) {
+      return res.status(400).json({ error: "Title is required" });
+    }
+    
     const shuffleQuestions = shuffle_questions ? 1 : 0;
     const shuffleOptions = shuffle_options ? 1 : 0;
+    const finalStatus = status || 'draft';
+    const finalDuration = duration_minutes ? Number(duration_minutes) : 60;
     
     await pool.execute(
       "UPDATE exams SET title = ?, description = ?, duration_minutes = ?, status = ?, shuffle_questions = ?, shuffle_options = ? WHERE id = ?",
-      [title, description, duration_minutes, status, shuffleQuestions, shuffleOptions, id]
+      [title, description || "", finalDuration, finalStatus, shuffleQuestions, shuffleOptions, id]
     );
     res.json({ message: "Exam updated" });
   } catch (error) {
+    console.error("Error updating exam:", error);
     res.status(500).json({ error: error.message });
   }
 });
