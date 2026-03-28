@@ -10,7 +10,7 @@ router.use(authMiddleware);
 // ===== ADMIN ROUTES =====
 
 // Get all groups (admin only)
-router.get("/", requireRole(['admin']), async (req, res) => {
+router.get("/", requireRole('admin'), async (req, res) => {
   try {
     const [groups] = await pool.execute(
       "SELECT g.*, u.username as created_by_name FROM groups g JOIN users u ON g.created_by = u.id ORDER BY g.created_at DESC"
@@ -34,7 +34,7 @@ router.get("/", requireRole(['admin']), async (req, res) => {
 });
 
 // Create group (admin only)
-router.post("/", requireRole(['admin']), async (req, res) => {
+router.post("/", requireRole('admin'), async (req, res) => {
   try {
     const { name, description } = req.body;
     
@@ -57,7 +57,7 @@ router.post("/", requireRole(['admin']), async (req, res) => {
 });
 
 // Update group (admin only)
-router.put("/:id", requireRole(['admin']), async (req, res) => {
+router.put("/:id", requireRole('admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description } = req.body;
@@ -81,7 +81,7 @@ router.put("/:id", requireRole(['admin']), async (req, res) => {
 });
 
 // Delete group (admin only)
-router.delete("/:id", requireRole(['admin']), async (req, res) => {
+router.delete("/:id", requireRole('admin'), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -95,7 +95,7 @@ router.delete("/:id", requireRole(['admin']), async (req, res) => {
 // ===== GROUP MEMBERS MANAGEMENT =====
 
 // Get group members (admin only)
-router.get("/:groupId/members", requireRole(['admin']), async (req, res) => {
+router.get("/:groupId/members", requireRole('admin'), async (req, res) => {
   try {
     const { groupId } = req.params;
     
@@ -111,7 +111,7 @@ router.get("/:groupId/members", requireRole(['admin']), async (req, res) => {
 });
 
 // Add member to group (admin only)
-router.post("/:groupId/members", requireRole(['admin']), async (req, res) => {
+router.post("/:groupId/members", requireRole('admin'), async (req, res) => {
   try {
     const { groupId } = req.params;
     const { studentIds } = req.body; // Array of student IDs
@@ -178,7 +178,7 @@ router.post("/:groupId/members", requireRole(['admin']), async (req, res) => {
 });
 
 // Remove member from group (admin only)
-router.delete("/:groupId/members/:studentId", requireRole(['admin']), async (req, res) => {
+router.delete("/:groupId/members/:studentId", requireRole('admin'), async (req, res) => {
   try {
     const { groupId, studentId } = req.params;
     
@@ -204,6 +204,41 @@ router.get("/for-exams/list", async (req, res) => {
     );
     
     res.json(groups);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== DEBUG ENDPOINT =====
+
+// Debug: Check admin user and group info
+router.get("/debug/check", requireRole('admin'), async (req, res) => {
+  try {
+    console.log(`[DEBUG] Current admin user:`, req.user);
+    
+    // Check if user is really admin
+    const [adminCheck] = await pool.execute(
+      "SELECT id, username, role FROM users WHERE id = ?",
+      [req.user.id]
+    );
+    
+    // Get all groups
+    const [groupsCheck] = await pool.execute(
+      "SELECT id, name FROM groups"
+    );
+    
+    // Get all students
+    const [studentsCheck] = await pool.execute(
+      "SELECT id, username, role FROM users WHERE role = 'student' LIMIT 5"
+    );
+    
+    res.json({
+      currentUser: adminCheck[0] || null,
+      allGroups: groupsCheck,
+      sampleStudents: studentsCheck,
+      userRole: req.user.role,
+      userId: req.user.id
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
