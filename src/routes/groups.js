@@ -116,8 +116,21 @@ router.post("/:groupId/members", requireRole(['admin']), async (req, res) => {
     const { groupId } = req.params;
     const { studentIds } = req.body; // Array of student IDs
     
+    console.log(`[DEBUG] POST /groups/${groupId}/members - Request body:`, { groupId, studentIds });
+    
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
       return res.status(400).json({ error: "studentIds array is required" });
+    }
+    
+    // Verify group exists
+    const [group] = await pool.execute(
+      "SELECT id FROM groups WHERE id = ?",
+      [groupId]
+    );
+    
+    if (!group.length) {
+      console.warn(`[WARNING] Group ${groupId} not found`);
+      return res.status(404).json({ error: "Group not found" });
     }
     
     const results = { added: 0, failed: 0, errors: [] };
@@ -133,24 +146,33 @@ router.post("/:groupId/members", requireRole(['admin']), async (req, res) => {
         if (student.length === 0) {
           results.failed++;
           results.errors.push(`Student ID ${studentId} not found`);
+          console.warn(`[WARNING] Student ${studentId} not found or not a student`);
           continue;
         }
         
         // Add to group (ignore if already exists)
-        await pool.execute(
+        const [insertResult] = await pool.execute(
           "INSERT IGNORE INTO group_members (group_id, student_id, added_by) VALUES (?, ?, ?)",
           [groupId, studentId, req.user.id]
         );
         
-        results.added++;
+        if (insertResult.affectedRows > 0) {
+          results.added++;
+          console.log(`[✅] Student ${studentId} added to group ${groupId}`);
+        } else {
+          console.warn(`[INFO] Student ${studentId} already in group ${groupId}`);
+        }
       } catch (err) {
         results.failed++;
         results.errors.push(`Error adding student ${studentId}: ${err.message}`);
+        console.error(`[ERROR] Adding student ${studentId} to group ${groupId}:`, err);
       }
     }
     
+    console.log(`[DEBUG] Group assignment results:`, results);
     res.json({ message: "Members added to group", ...results });
   } catch (error) {
+    console.error(`[ERROR] POST /groups/:groupId/members:`, error);
     res.status(500).json({ error: error.message });
   }
 });
