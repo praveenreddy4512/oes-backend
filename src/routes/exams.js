@@ -57,28 +57,19 @@ router.get("/:id", async (req, res) => {
 // Create exam (professor/admin)
 router.post("/", async (req, res) => {
   try {
-    const { title, description, professor_id, duration_minutes } = req.body;
+    const { title, description, professor_id, duration_minutes, shuffle_questions, shuffle_options } = req.body;
     // Validate required fields
     if (!title || !professor_id) {
       return res.status(400).json({ error: "Title and professor_id are required" });
     }
     const duration = duration_minutes ? Number(duration_minutes) : 60;
+    const shuffleQuestions = shuffle_questions ? 1 : 0;
+    const shuffleOptions = shuffle_options ? 1 : 0;
     
-    // ❌ VULNERABLE CODE (for educational purposes - DO NOT USE IN PRODUCTION)
-    // Insecure approach - string concatenation:
-    // const unsafeQuery = `INSERT INTO exams (title, description, professor_id, duration_minutes) VALUES ('${title}', '${description}', ${professor_id}, ${duration})`;
-    // await pool.execute(unsafeQuery);
-    // Problems:
-    // - SQL Injection in title: "Physics', 'Test'); DROP TABLE exams; --"
-    // - Entire exams table deleted with above input
-    // - description field also vulnerable
-    // - JSON injection possible in newer MySQL versions
-    // - No data validation on numeric fields
-
     // ✅ SECURE: Use parameterized queries with type conversion
     const [result] = await pool.execute(
-      "INSERT INTO exams (title, description, professor_id, duration_minutes) VALUES (?, ?, ?, ?)",
-      [title, description || "", professor_id, duration]
+      "INSERT INTO exams (title, description, professor_id, duration_minutes, shuffle_questions, shuffle_options) VALUES (?, ?, ?, ?, ?, ?)",
+      [title, description || "", professor_id, duration, shuffleQuestions, shuffleOptions]
     );
     res.json({ id: result.insertId, message: "Exam created" });
   } catch (error) {
@@ -90,11 +81,13 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, duration_minutes, status } = req.body;
-    // Note: passing_score may not be in database schema, so not including it
+    const { title, description, duration_minutes, status, shuffle_questions, shuffle_options } = req.body;
+    const shuffleQuestions = shuffle_questions ? 1 : 0;
+    const shuffleOptions = shuffle_options ? 1 : 0;
+    
     await pool.execute(
-      "UPDATE exams SET title = ?, description = ?, duration_minutes = ?, status = ? WHERE id = ?",
-      [title, description, duration_minutes, status, id]
+      "UPDATE exams SET title = ?, description = ?, duration_minutes = ?, status = ?, shuffle_questions = ?, shuffle_options = ? WHERE id = ?",
+      [title, description, duration_minutes, status, shuffleQuestions, shuffleOptions, id]
     );
     res.json({ message: "Exam updated" });
   } catch (error) {

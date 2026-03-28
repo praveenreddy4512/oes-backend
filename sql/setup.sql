@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS exams (
   total_questions INT DEFAULT 0,
   passing_score INT DEFAULT 50,
   status ENUM('draft', 'published', 'closed') DEFAULT 'draft',
+  shuffle_questions BOOLEAN DEFAULT FALSE COMMENT 'Shuffle question order for each student',
+  shuffle_options BOOLEAN DEFAULT FALSE COMMENT 'Shuffle answer options for each question',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (professor_id) REFERENCES users(id) ON DELETE CASCADE
 );
