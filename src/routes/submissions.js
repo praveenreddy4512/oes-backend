@@ -1,6 +1,7 @@
 import express from "express";
 import { pool } from "../db.js";
 import { authMiddleware, preventIDOR, getStudentSubmissionUser } from "../middleware/auth.js";
+import { sendSubmissionSuccessEmail } from "../services/emailService.js";
 
 const router = express.Router();
 
@@ -158,6 +159,24 @@ router.post("/:submission_id/submit", async (req, res) => {
 
     const submission = submissions[0];
 
+    // Get exam and student details
+    const [exams] = await pool.execute(
+      "SELECT title FROM exams WHERE id = ?",
+      [submission.exam_id]
+    );
+
+    const [students] = await pool.execute(
+      "SELECT username, email FROM users WHERE id = ?",
+      [submission.student_id]
+    );
+
+    if (!students.length) {
+      return res.status(404).json({ error: "Student not found" });
+    }
+
+    const student = students[0];
+    const exam = exams.length > 0 ? exams[0] : null;
+
     // Calculate score
     const [answers] = await pool.execute(
       "SELECT COUNT(*) as total, SUM(IF(is_correct, 1, 0)) as correct FROM answers WHERE submission_id = ?",
@@ -196,6 +215,20 @@ router.post("/:submission_id/submit", async (req, res) => {
       "INSERT INTO results (submission_id, exam_id, student_id, total_marks, obtained_marks, percentage, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [submission_id, submission.exam_id, submission.student_id, totalQuestions, correctAnswers, percentage, status]
     );
+
+    // ✅ Send submission success email to student (non-blocking)
+    if (student.email && exam) {
+      sendSubmissionSuccessEmail(
+        student.email,
+        student.username,
+        exam.title,
+        correctAnswers,
+        totalQuestions,
+        percentage
+      ).catch(err => {
+        console.error(`[⚠️ EMAIL] Failed to send success email to ${student.email}:`, err.message);
+      });
+    }
 
     res.json({
       message: "Exam submitted",

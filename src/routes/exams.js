@@ -1,6 +1,7 @@
 import express from "express";
 import { pool } from "../db.js";
 import { authMiddleware, requireRole } from "../middleware/auth.js";
+import { sendExamCompletionEmail } from "../services/emailService.js";
 
 const router = express.Router();
 
@@ -234,6 +235,113 @@ router.get("/student/exams/by-group", async (req, res) => {
     
     res.json(exams);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ✅ Send exam completion notification to professor
+// Called when exam end time is reached
+router.post("/:examId/send-completion-notification", async (req, res) => {
+  try {
+    const { examId } = req.params;
+
+    // Get exam details
+    const [exams] = await pool.execute(
+      "SELECT id, title, professor_id FROM exams WHERE id = ?",
+      [examId]
+    );
+
+    if (!exams.length) {
+      return res.status(404).json({ error: "Exam not found" });
+    }
+
+    const exam = exams[0];
+
+    // Get professor details
+    const [professors] = await pool.execute(
+      "SELECT id, username, email FROM users WHERE id = ?",
+      [exam.professor_id]
+    );
+
+    if (!professors.length) {
+      return res.status(404).json({ error: "Professor not found" });
+    }
+
+    const professor = professors[0];
+
+    // Get submission statistics
+    const [submissionStats] = await pool.execute(
+      `SELECT 
+        COUNT(*) as total_students,
+        SUM(IF(is_submitted = TRUE, 1, 0)) as submitted_count,
+        SUM(IF(is_submitted = FALSE OR is_submitted IS NULL, 1, 0)) as not_submitted_count,
+        AVG(IFNULL(r.percentage, 0)) as average_score
+       FROM submissions s
+       LEFT JOIN results r ON s.id = r.submission_id
+       WHERE s.exam_id = ?`,
+      [examId]
+    );
+
+    const stats = submissionStats[0] || {};
+    const totalStudents = stats.total_students || 0;
+    const submittedCount = stats.submitted_count || 0;
+    const notSubmittedCount = stats.not_submitted_count || 0;
+    const averageScore = stats.average_score ? Math.round(stats.average_score * 100) / 100 : 0;
+
+    // Get top 3 performers
+    const [topScores] = await pool.execute(
+      `SELECT 
+        u.username as studentName,
+        r.percentage,
+        r.obtained_marks as score,
+        r.total_marks as totalMarks
+       FROM results r
+       JOIN users u ON r.student_id = u.id
+       WHERE r.exam_id = ?
+       ORDER BY r.percentage DESC
+       LIMIT 3`,
+      [examId]
+    );
+
+    // Send email to professor
+    const emailSent = await sendExamCompletionEmail(
+      professor.email,
+      professor.username,
+      exam.title,
+      totalStudents,
+      submittedCount,
+      notSubmittedCount,
+      averageScore,
+      topScores
+    );
+
+    if (emailSent) {
+      console.log(`[✅ EXAM_COMPLETE] Completion notification sent to professor ${professor.username}`);
+      return res.json({
+        message: "Exam completion notification sent",
+        stats: {
+          totalStudents,
+          submittedCount,
+          notSubmittedCount,
+          averageScore,
+          topScores: topScores.length > 0 ? topScores : []
+        }
+      });
+    } else {
+      console.warn(`[⚠️ EXAM_COMPLETE] Failed to send notification to professor ${professor.username}`);
+      return res.json({
+        message: "Email service not available",
+        stats: {
+          totalStudents,
+          submittedCount,
+          notSubmittedCount,
+          averageScore,
+          topScores: topScores.length > 0 ? topScores : []
+        }
+      });
+    }
+  } catch (error) {
+    console.error("[❌ EXAM_COMPLETE] Error:", error.message);
     res.status(500).json({ error: error.message });
   }
 });

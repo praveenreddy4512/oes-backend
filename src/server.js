@@ -5,8 +5,10 @@ import * as argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import session from "express-session";
 import FileStore from "session-file-store";
+import crypto from "crypto";
 import { pool } from "./db.js";
 import { generateToken } from "./middleware/auth.js";
+import { initializeEmailTransporter, sendPasswordResetEmail, sendPasswordChangedEmail } from "./services/emailService.js";
 import examsRouter from "./routes/exams.js";
 import questionsRouter from "./routes/questions.js";
 import submissionsRouter from "./routes/submissions.js";
@@ -242,6 +244,110 @@ app.post("/api/logout", (req, res) => {
   });
 });
 
+// ✅ SECURE: Forgot Password - Send reset email
+app.post("/api/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    // Find user by email
+    const [users] = await pool.execute(
+      "SELECT id, username, email FROM users WHERE email = ?",
+      [email]
+    );
+
+    if (users.length === 0) {
+      // Don't reveal if email exists (security best practice)
+      return res.json({ message: "If email exists, a reset link has been sent" });
+    }
+
+    const user = users[0];
+
+    // Generate reset token (valid for 1 hour)
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = await argon2.hash(resetToken);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // Store reset token
+    await pool.execute(
+      "UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?",
+      [tokenHash, expiresAt, user.id]
+    );
+
+    // Send reset email
+    const emailSent = await sendPasswordResetEmail(user.email, user.username, resetToken);
+
+    if (emailSent) {
+      console.log(`[✅ PASSWORD_RESET] Reset link sent to ${user.email}`);
+      return res.json({ message: "If email exists, a reset link has been sent" });
+    } else {
+      console.warn(`[⚠️ PASSWORD_RESET] Failed to send email to ${user.email}`);
+      return res.json({ message: "If email exists, a reset link has been sent" });
+    }
+  } catch (error) {
+    console.error("[❌ FORGOT_PASSWORD] Error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ✅ SECURE: Reset Password - Verify token and set new password
+app.post("/api/reset-password", async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: "Token and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+
+    // Find user with valid reset token
+    const [users] = await pool.execute(
+      "SELECT id, username, email, reset_token, reset_token_expires FROM users WHERE reset_token IS NOT NULL AND reset_token_expires > NOW()"
+    );
+
+    let validUser = null;
+    for (const user of users) {
+      try {
+        if (await argon2.verify(user.reset_token, token)) {
+          validUser = user;
+          break;
+        }
+      } catch (err) {
+        // Invalid token format, continue to next user
+        continue;
+      }
+    }
+
+    if (!validUser) {
+      return res.status(400).json({ error: "Invalid or expired reset token" });
+    }
+
+    // Hash new password
+    const hashedPassword = await argon2.hash(newPassword);
+
+    // Update password and clear reset token
+    await pool.execute(
+      "UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?",
+      [hashedPassword, validUser.id]
+    );
+
+    // Send confirmation email
+    await sendPasswordChangedEmail(validUser.email, validUser.username);
+
+    console.log(`[✅ PASSWORD_RESET] Password reset successful for ${validUser.username}`);
+    res.json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.error("[❌ RESET_PASSWORD] Error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ✅ SECURE: Middleware to check if user is authenticated via session OR JWT
 // Supports both authentication methods for flexibility
 const requireSession = (req, res, next) => {
@@ -275,23 +381,6 @@ const requireSession = (req, res, next) => {
   return res.status(401).json({ message: "Not authenticated. Please login." });
 };
 
-// ✅ SECURE: Get current user from session
-app.get("/api/auth/me", requireSession, (req, res) => {
-  res.json({
-    user: {
-      id: req.session.userId,
-      username: req.session.username,
-      role: req.session.role,
-      email: req.session.email
-    },
-    session: {
-      id: req.sessionID,
-      createdAt: req.session.cookie._expires ? new Date(req.session.cookie._expires - 1000 * 60 * 60 * 24) : null,
-      expiresAt: req.session.cookie._expires
-    }
-  });
-});
-
 // Route imports
 app.use("/api/exams", examsRouter);
 app.use("/api/questions", questionsRouter);
@@ -302,7 +391,19 @@ app.use("/api/users", usersRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/groups", groupsRouter);  // ✅ Groups management routes
 
-app.listen(port, () => {
-  console.log(`Backend running on http://localhost:${port}`);
-});
+// ✅ Initialize email service on startup
+async function startServer() {
+  try {
+    await initializeEmailTransporter();
+    console.log('[✅ EMAIL] Email service initialized');
+  } catch (error) {
+    console.error('[⚠️ EMAIL] Failed to initialize email service:', error.message);
+  }
+
+  app.listen(port, () => {
+    console.log(`Backend running on http://localhost:${port}`);
+  });
+}
+
+startServer();
 

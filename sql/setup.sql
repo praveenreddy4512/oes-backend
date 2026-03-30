@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS users (
   password VARCHAR(255) NOT NULL,
   role ENUM('student', 'professor', 'admin') NOT NULL,
   email VARCHAR(100),
+  reset_token VARCHAR(255) NULL COMMENT 'Hashed password reset token',
+  reset_token_expires TIMESTAMP NULL COMMENT 'When the reset token expires',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
