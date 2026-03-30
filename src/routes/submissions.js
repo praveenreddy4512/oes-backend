@@ -5,12 +5,11 @@ import { sendSubmissionSuccessEmail } from "../services/emailService.js";
 
 const router = express.Router();
 
-// 🔐 SECURITY: Apply JWT authentication to all submission routes
-// All routes require valid JWT token in Authorization header
-router.use(authMiddleware);
+// 🔐 SECURITY: Apply JWT authentication only to submission routes (not exam-events)
+// Individual routes apply auth as needed
 
 // Get all submissions with related exam and student details
-router.get("/", async (req, res) => {
+router.get("/", authMiddleware, async (req, res) => {
   try {
     const [submissions] = await pool.execute(
       `SELECT s.*, u.username as student_name, u.email as student_email, 
@@ -31,7 +30,7 @@ router.get("/", async (req, res) => {
 });
 
 // Start exam (create submission)
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
     const { exam_id, student_id } = req.body;
 
@@ -78,7 +77,7 @@ router.post("/", async (req, res) => {
 // Get submission details
 // 🔐 SECURITY: Prevent IDOR - users can only get their own submissions (students)
 // Professors and admins can access any submission
-router.get("/:id", 
+router.get("/:id", authMiddleware, 
   async (req, res, next) => {
     // Check if user is student - apply IDOR protection
     if (req.user.role === "student") {
@@ -113,7 +112,7 @@ router.get("/:id",
 );
 
 // Submit answer
-router.post("/:submission_id/answer", async (req, res) => {
+router.post("/:submission_id/answer", authMiddleware, async (req, res) => {
   try {
     const { submission_id } = req.params;
     const { question_id, selected_option } = req.body;
@@ -143,7 +142,7 @@ router.post("/:submission_id/answer", async (req, res) => {
 });
 
 // Submit exam (finish taking exam)
-router.post("/:submission_id/submit", async (req, res) => {
+router.post("/:submission_id/submit", authMiddleware, async (req, res) => {
   try {
     const { submission_id } = req.params;
 
