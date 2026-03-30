@@ -58,9 +58,7 @@ router.get("/",
           COUNT(DISTINCT exam_id) as total_exams,
           COUNT(DISTINCT student_id) as total_students,
           COUNT(*) as total_results,
-          AVG(percentage) as avg_percentage,
-          SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_count,
-          SUM(CASE WHEN status = 'fail' THEN 1 ELSE 0 END) as fail_count
+          AVG(percentage) as avg_percentage
         FROM results
       `);
       // Convert numeric strings to numbers
@@ -69,9 +67,7 @@ router.get("/",
         total_exams: Number(result.total_exams) || 0,
         total_students: Number(result.total_students) || 0,
         total_results: Number(result.total_results) || 0,
-        avg_percentage: Number(result.avg_percentage) || 0,
-        pass_count: Number(result.pass_count) || 0,
-        fail_count: Number(result.fail_count) || 0
+        avg_percentage: Number(result.avg_percentage) || 0
       });
     } catch (error) {
       res.status(500).json({ error: error.message });

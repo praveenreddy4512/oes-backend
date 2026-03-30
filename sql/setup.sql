@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS exams (
   professor_id INT NOT NULL,
   duration_minutes INT DEFAULT 60,
   total_questions INT DEFAULT 0,
-  passing_score INT DEFAULT 50,
   status ENUM('draft', 'published', 'closed') DEFAULT 'draft',
   shuffle_questions BOOLEAN DEFAULT FALSE COMMENT 'Shuffle question order for each student',
   shuffle_options BOOLEAN DEFAULT FALSE COMMENT 'Shuffle answer options for each question',
@@ -68,7 +67,7 @@ CREATE TABLE IF NOT EXISTS results (
   total_marks INT DEFAULT 0,
   obtained_marks INT DEFAULT 0,
   percentage DECIMAL(5,2) DEFAULT 0.00,
-  status ENUM('pass', 'fail', 'pending') DEFAULT 'pending',
+  status ENUM('completed', 'pending') DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
   FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
@@ -129,10 +128,10 @@ ON DUPLICATE KEY UPDATE
   email = VALUES(email);
 
 -- Seed some exams
-INSERT INTO exams (title, description, professor_id, duration_minutes, total_questions, passing_score, status) VALUES
-  ('Mathematics 101', 'Basic mathematics concepts', 1, 60, 10, 50, 'published'),
-  ('Physics 201', 'Advanced physics topics', 1, 90, 15, 60, 'published'),
-  ('Chemistry Basics', 'General chemistry principles', 2, 45, 8, 55, 'draft')
+INSERT INTO exams (title, description, professor_id, duration_minutes, total_questions, status) VALUES
+  ('Mathematics 101', 'Basic mathematics concepts', 1, 60, 10, 'published'),
+  ('Physics 201', 'Advanced physics topics', 1, 90, 15, 'published'),
+  ('Chemistry Basics', 'General chemistry principles', 2, 45, 8, 'draft')
 ON DUPLICATE KEY UPDATE
   title = VALUES(title),
   status = VALUES(status);

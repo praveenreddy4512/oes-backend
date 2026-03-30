@@ -17,7 +17,6 @@ router.use(authMiddleware);
 const defaultSettings = {
   system_name: "Online Examination System",
   default_exam_duration: 60,
-  default_passing_score: 50,
   max_exam_attempts: 3,
 };
 
@@ -57,7 +56,7 @@ router.get("/", async (req, res) => {
 // Update settings (admin only)
 router.put("/", requireRole("admin"), async (req, res) => {
   try {
-    const { system_name, default_exam_duration, default_passing_score, max_exam_attempts } = req.body;
+    const { system_name, default_exam_duration, max_exam_attempts } = req.body;
 
     // Validate inputs
     if (!system_name) {
@@ -67,7 +66,6 @@ router.put("/", requireRole("admin"), async (req, res) => {
     const settings = {
       system_name: String(system_name),
       default_exam_duration: Math.max(1, Number(default_exam_duration) || 60),
-      default_passing_score: Math.max(0, Math.min(100, Number(default_passing_score) || 50)),
       max_exam_attempts: Math.max(1, Number(max_exam_attempts) || 3),
     };
 
