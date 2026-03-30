@@ -139,26 +139,42 @@ export async function sendEmail(to, subject, html, baseSubject = 'EMAIL') {
  * @param {number} percentage - Score percentage
  */
 export async function sendSubmissionSuccessEmail(studentEmail, studentName, examTitle, score, totalMarks, percentage) {
-  const subject = `✅ Exam Submitted Successfully - ${examTitle}`;
+  const subject = `Exam Submitted Successfully - ${examTitle}`;
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #28a745;">Exam Submitted Successfully! ✅</h2>
-      
-      <p>Dear <strong>${studentName}</strong>,</p>
-      
-      <p>Your exam has been submitted successfully. Here are your results:</p>
-      
-      <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <p><strong>Exam Title:</strong> ${examTitle}</p>
-        <p><strong>Score:</strong> ${score}/${totalMarks}</p>
-        <p><strong>Percentage:</strong> <span style="font-size: 24px; color: #28a745;"><strong>${percentage}%</strong></span></p>
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <div style="background-color: #af0c3e; color: white; padding: 30px; text-align: center;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 600;">Exam Submitted</h1>
       </div>
       
-      <p>Your submission has been recorded in the system. You can view your detailed results in your exam portal.</p>
-      
-      <p style="color: #666; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; font-size: 12px;">
-        This is an automated email from Online Exam System. Please do not reply to this email.
-      </p>
+      <div style="padding: 30px;">
+        <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Dear <strong>${studentName}</strong>,</p>
+        
+        <p style="font-size: 15px; color: #555; line-height: 1.6; margin: 0 0 25px 0;">Your exam has been submitted successfully. Your results are shown below:</p>
+        
+        <div style="background-color: #f5f5f5; border-left: 4px solid #af0c3e; padding: 20px; margin: 25px 0; border-radius: 4px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+            <tr>
+              <td style="padding: 8px 0; color: #666;"><strong>Exam:</strong></td>
+              <td style="padding: 8px 0; color: #333; text-align: right;"><strong>${examTitle}</strong></td>
+            </tr>
+            <tr style="border-top: 1px solid #ddd;">
+              <td style="padding: 8px 0; color: #666;"><strong>Score:</strong></td>
+              <td style="padding: 8px 0; color: #af0c3e; text-align: right;"><strong>${score}/${totalMarks}</strong></td>
+            </tr>
+            <tr style="border-top: 1px solid #ddd;">
+              <td style="padding: 8px 0; color: #666;"><strong>Percentage:</strong></td>
+              <td style="padding: 8px 0; color: #af0c3e; text-align: right;"><strong>${percentage}%</strong></td>
+            </tr>
+          </table>
+        </div>
+        
+        <p style="font-size: 15px; color: #555; line-height: 1.6; margin: 25px 0;">Your submission has been recorded. You can view detailed results and feedback in your exam portal.</p>
+        
+        <p style="font-size: 13px; color: #999; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; line-height: 1.6;">
+          Online Examination System<br>
+          This is an automated message. Please do not reply to this email.
+        </p>
+      </div>
     </div>
   `;
 
@@ -173,26 +189,42 @@ export async function sendSubmissionSuccessEmail(studentEmail, studentName, exam
  * @param {string} reason - Reason for non-submission (e.g., "Time ended", "Did not submit")
  */
 export async function sendNonSubmissionEmail(studentEmail, studentName, examTitle, reason = 'Exam time ended') {
-  const subject = `⏰ Exam Not Submitted - ${examTitle}`;
+  const subject = `Exam Not Submitted - ${examTitle}`;
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #dc3545;">⏰ Exam Not Submitted</h2>
-      
-      <p>Dear <strong>${studentName}</strong>,</p>
-      
-      <p>We noticed that you did not submit your exam. Here are the details:</p>
-      
-      <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
-        <p><strong>Exam Title:</strong> ${examTitle}</p>
-        <p><strong>Status:</strong> <span style="color: #dc3545;"><strong>Not Submitted</strong></span></p>
-        <p><strong>Reason:</strong> ${reason}</p>
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <div style="background-color: #af0c3e; color: white; padding: 30px; text-align: center;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 600;">Exam Not Submitted</h1>
       </div>
       
-      <p>If you believe this is an error or need to retake this exam, please contact your professor.</p>
-      
-      <p style="color: #666; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; font-size: 12px;">
-        This is an automated email from Online Exam System. Please do not reply to this email.
-      </p>
+      <div style="padding: 30px;">
+        <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Dear <strong>${studentName}</strong>,</p>
+        
+        <p style="font-size: 15px; color: #555; line-height: 1.6; margin: 0 0 25px 0;">We have recorded that you did not submit your exam. Below are the details:</p>
+        
+        <div style="background-color: #fff5f5; border-left: 4px solid #dc3545; padding: 20px; margin: 25px 0; border-radius: 4px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+            <tr>
+              <td style="padding: 8px 0; color: #666;"><strong>Exam:</strong></td>
+              <td style="padding: 8px 0; color: #333; text-align: right;"><strong>${examTitle}</strong></td>
+            </tr>
+            <tr style="border-top: 1px solid #f0d0d0;">
+              <td style="padding: 8px 0; color: #666;"><strong>Status:</strong></td>
+              <td style="padding: 8px 0; color: #dc3545; text-align: right;"><strong>Not Submitted</strong></td>
+            </tr>
+            <tr style="border-top: 1px solid #f0d0d0;">
+              <td style="padding: 8px 0; color: #666;"><strong>Reason:</strong></td>
+              <td style="padding: 8px 0; color: #333; text-align: right;"><strong>${reason}</strong></td>
+            </tr>
+          </table>
+        </div>
+        
+        <p style="font-size: 15px; color: #555; line-height: 1.6; margin: 25px 0;">If you believe this is an error or if you need assistance, please contact your instructor immediately.</p>
+        
+        <p style="font-size: 13px; color: #999; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; line-height: 1.6;">
+          Online Examination System<br>
+          This is an automated message. Please do not reply to this email.
+        </p>
+      </div>
     </div>
   `;
 
@@ -225,56 +257,61 @@ export async function sendExamCompletionEmail(
   let topScoresHtml = '';
   if (topScores.length > 0) {
     topScoresHtml = `
-      <h4 style="margin-top: 20px; color: #333;">Top Performers:</h4>
-      <ol style="color: #555;">
-        ${topScores.map((score, index) => `
+      <h3 style="margin: 25px 0 15px 0; color: #333; font-weight: 600;">Top Performers</h3>
+      <ol style="color: #555; font-size: 15px; line-height: 1.8; margin: 0; padding-left: 20px;">
+        ${topScores.map((score) => `
           <li>${score.studentName}: ${score.percentage}% (${score.score}/${score.totalMarks})</li>
         `).join('')}
       </ol>
     `;
   }
 
-  const subject = `📊 Exam Completed - ${examTitle} - Results Summary`;
+  const subject = `Exam Completed - ${examTitle} - Results Summary`;
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #007bff;">📊 Exam Completion Summary</h2>
-      
-      <p>Dear <strong>${professorName}</strong>,</p>
-      
-      <p>Your exam <strong>"${examTitle}"</strong> has concluded. Here is the summary of submissions:</p>
-      
-      <div style="background-color: #e7f3ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff;">
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Total Students:</strong></td>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;"><strong>${totalStudents}</strong></td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Submitted:</strong></td>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;"><strong style="color: #28a745;">${submittedCount}</strong></td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Not Submitted:</strong></td>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;"><strong style="color: #dc3545;">${notSubmittedCount}</strong></td>
-          </tr>
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd;"><strong>Submission Rate:</strong></td>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;"><strong>${submissionRate}%</strong></td>
-          </tr>
-          <tr>
-            <td style="padding: 10px;"><strong>Average Score:</strong></td>
-            <td style="padding: 10px; text-align: right;"><strong style="color: #007bff;">${averageScore}%</strong></td>
-          </tr>
-        </table>
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <div style="background-color: #af0c3e; color: white; padding: 30px; text-align: center;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 600;">Exam Results Summary</h1>
       </div>
       
-      ${topScoresHtml}
-      
-      <p style="margin-top: 20px;">Login to your professor dashboard to view detailed analysis and student results.</p>
-      
-      <p style="color: #666; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; font-size: 12px;">
-        This is an automated email from Online Exam System. Please do not reply to this email.
-      </p>
+      <div style="padding: 30px;">
+        <p style="font-size: 16px; color: #333; margin: 0 0 25px 0;">Dear <strong>${professorName}</strong>,</p>
+        
+        <p style="font-size: 15px; color: #555; line-height: 1.6; margin: 0 0 25px 0;">Your exam <strong>"${examTitle}"</strong> has concluded. Here is a summary of submissions and results:</p>
+        
+        <div style="background-color: #f5f5f5; border-left: 4px solid #af0c3e; padding: 20px; margin: 25px 0; border-radius: 4px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+            <tr>
+              <td style="padding: 10px 0; color: #666;"><strong>Total Students:</strong></td>
+              <td style="padding: 10px 0; color: #333; text-align: right;"><strong>${totalStudents}</strong></td>
+            </tr>
+            <tr style="border-top: 1px solid #ddd;">
+              <td style="padding: 10px 0; color: #666;"><strong>Submitted:</strong></td>
+              <td style="padding: 10px 0; color: #28a745; text-align: right;"><strong>${submittedCount}</strong></td>
+            </tr>
+            <tr style="border-top: 1px solid #ddd;">
+              <td style="padding: 10px 0; color: #666;"><strong>Not Submitted:</strong></td>
+              <td style="padding: 10px 0; color: #dc3545; text-align: right;"><strong>${notSubmittedCount}</strong></td>
+            </tr>
+            <tr style="border-top: 1px solid #ddd;">
+              <td style="padding: 10px 0; color: #666;"><strong>Submission Rate:</strong></td>
+              <td style="padding: 10px 0; color: #af0c3e; text-align: right;"><strong>${submissionRate}%</strong></td>
+            </tr>
+            <tr style="border-top: 1px solid #ddd;">
+              <td style="padding: 10px 0; color: #666;"><strong>Average Score:</strong></td>
+              <td style="padding: 10px 0; color: #af0c3e; text-align: right;"><strong>${averageScore}%</strong></td>
+            </tr>
+          </table>
+        </div>
+        
+        ${topScoresHtml}
+        
+        <p style="font-size: 15px; color: #555; line-height: 1.6; margin: 25px 0;">Login to your instructor dashboard to view detailed analysis, student responses, and additional insights.</p>
+        
+        <p style="font-size: 13px; color: #999; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; line-height: 1.6;">
+          Online Examination System<br>
+          This is an automated message. Please do not reply to this email.
+        </p>
+      </div>
     </div>
   `;
 
@@ -291,35 +328,40 @@ export async function sendPasswordResetEmail(email, userName, resetToken) {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
 
-  const subject = '🔐 Password Reset Request';
+  const subject = 'Password Reset Request';
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #007bff;">🔐 Password Reset Request</h2>
-      
-      <p>Hello <strong>${userName}</strong>,</p>
-      
-      <p>We received a request to reset your password. If you made this request, click the button below to proceed:</p>
-      
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${resetLink}" style="display: inline-block; background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; font-weight: bold;">
-          Reset Your Password
-        </a>
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <div style="background-color: #af0c3e; color: white; padding: 30px; text-align: center;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 600;">Password Reset Request</h1>
       </div>
       
-      <p>Or copy and paste this link in your browser:</p>
-      <p style="word-break: break-all; background-color: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px;">
-        ${resetLink}
-      </p>
-      
-      <div style="background-color: #fff3cd; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #ffc107;">
-        <p style="margin: 0; color: #856404;">
-          <strong>⚠️ Security Note:</strong> This link will expire in 1 hour. If you did not request a password reset, please ignore this email. Your account remains secure.
+      <div style="padding: 30px;">
+        <p style="font-size: 16px; color: #333; margin: 0 0 25px 0;">Hello <strong>${userName}</strong>,</p>
+        
+        <p style="font-size: 15px; color: #555; line-height: 1.6; margin: 0 0 25px 0;">We received a request to reset your password. Click the button below to proceed with resetting your password:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetLink}" style="display: inline-block; background-color: #af0c3e; color: white; padding: 14px 40px; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 16px;">
+            Reset Password
+          </a>
+        </div>
+        
+        <p style="font-size: 14px; color: #666; line-height: 1.6; margin: 30px 0;">Or copy and paste this link in your browser:</p>
+        <p style="word-break: break-all; background-color: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 13px; color: #333; margin: 0;">
+          ${resetLink}
+        </p>
+        
+        <div style="background-color: #fff5f5; border-left: 4px solid #af0c3e; padding: 15px; margin: 25px 0; border-radius: 4px;">
+          <p style="margin: 0; color: #666; font-size: 14px; line-height: 1.6;">
+            <strong>Security Notice:</strong> This link will expire in 1 hour. If you did not request a password reset, please contact support immediately and your account will remain secure.
+          </p>
+        </div>
+        
+        <p style="font-size: 13px; color: #999; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; line-height: 1.6;">
+          Online Examination System<br>
+          This is an automated message. Please do not reply to this email.
         </p>
       </div>
-      
-      <p style="color: #666; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; font-size: 12px;">
-        This is an automated email from Online Exam System. Please do not reply to this email.
-      </p>
     </div>
   `;
 
@@ -332,24 +374,31 @@ export async function sendPasswordResetEmail(email, userName, resetToken) {
  * @param {string} userName - User name
  */
 export async function sendPasswordChangedEmail(email, userName) {
-  const subject = '✅ Password Changed Successfully';
+  const subject = 'Password Changed Successfully';
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <h2 style="color: #28a745;">✅ Password Changed</h2>
-      
-      <p>Hello <strong>${userName}</strong>,</p>
-      
-      <p>Your password has been changed successfully. If you did not make this change, please contact support immediately.</p>
-      
-      <div style="background-color: #d4edda; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #28a745;">
-        <p style="margin: 0; color: #155724;">
-          Your account is now using the new password.
-        </p>
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <div style="background-color: #af0c3e; color: white; padding: 30px; text-align: center;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 600;">Password Updated</h1>
       </div>
       
-      <p style="color: #666; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; font-size: 12px;">
-        This is an automated email from Online Exam System. Please do not reply to this email.
-      </p>
+      <div style="padding: 30px;">
+        <p style="font-size: 16px; color: #333; margin: 0 0 25px 0;">Hello <strong>${userName}</strong>,</p>
+        
+        <p style="font-size: 15px; color: #555; line-height: 1.6; margin: 0 0 25px 0;">Your password has been changed successfully. Your account is now secured with the new password.</p>
+        
+        <div style="background-color: #f0f0f0; border-left: 4px solid #28a745; padding: 15px; margin: 25px 0; border-radius: 4px;">
+          <p style="margin: 0; color: #333; font-size: 15px; line-height: 1.6;">
+            <strong>What happens next:</strong> You can now log in with your new password. If you did not make this change, please contact support immediately.
+          </p>
+        </div>
+        
+        <p style="font-size: 15px; color: #555; line-height: 1.6; margin: 25px 0;">For security, we recommend not sharing your password with anyone and keeping it secure.</p>
+        
+        <p style="font-size: 13px; color: #999; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; line-height: 1.6;">
+          Online Examination System<br>
+          This is an automated message. Please do not reply to this email.
+        </p>
+      </div>
     </div>
   `;
 
