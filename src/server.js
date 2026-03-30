@@ -384,8 +384,8 @@ const requireSession = (req, res, next) => {
 // Route imports
 app.use("/api/exams", examsRouter);
 app.use("/api/questions", questionsRouter);
-app.use("/api/submissions", submissionsRouter);
-app.use("/api/submissions", examEventsRouter);  // ✅ Event tracking routes
+app.use("/api/submissions", examEventsRouter);  // ✅ Event tracking routes (must come FIRST - more specific routes)
+app.use("/api/submissions", submissionsRouter); // General submission routes (less specific - comes after)
 app.use("/api/results", resultsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/settings", settingsRouter);
