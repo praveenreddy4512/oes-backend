@@ -7,7 +7,7 @@ const mysql = require('mysql2/promise');
 
 async function createExamEventsTable() {
   let connection;
-  
+
   try {
     connection = await mysql.createConnection({
       host: process.env.DB_HOST || 'localhost',
@@ -30,7 +30,7 @@ async function createExamEventsTable() {
         time_spent_seconds INT COMMENT 'Time spent on this question',
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         
-        FOREIGN KEY (submission_id) REFERENCES submissions(submission_id) ON DELETE CASCADE,
+        FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
         FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
         
