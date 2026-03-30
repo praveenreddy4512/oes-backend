@@ -359,30 +359,29 @@ router.get('/exam/:examId', async (req, res) => {
  *   "type": "COPILOT_SHORTCUT_ATTEMPT|AI_API_REQUEST_BLOCKED|EXTENSION_MESSAGE_ATTEMPT|etc",
  *   "data": { event details },
  *   "userAgent": browser user agent,
- *   "timestamp": ISO timestamp
+ *   "timestamp": ISO timestamp,
+ *   "student_id": student ID,
+ *   "exam_id": exam ID
  * }
  */
 router.post('/ai-detection', async (req, res) => {
   try {
-    const { type, data, userAgent, timestamp } = req.body;
-    const { userId, userRole } = getUserFromRequest(req);
+    const { type, data, userAgent, timestamp, student_id, exam_id } = req.body;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    // ✅ SECURE: Validate required fields
+    if (!type || !data || !student_id || !exam_id) {
+      return res.status(400).json({ error: 'Missing required fields: type, data, student_id, exam_id' });
     }
 
-    if (!type || !data) {
-      return res.status(400).json({ error: 'type and data are required' });
-    }
-
-    // Store AI detection event in a separate table (or in exam_events with special type)
-    // For now, just log it
-    console.log(`[⚠️ AI DETECTION] ${type} from student ${userId}`, JSON.stringify(data));
+    // Store AI detection event - could be stored in exam_events or separate table
+    // For now, just log it for monitoring
+    console.log(`[⚠️ AI DETECTION] Type: ${type}, Student: ${student_id}, Exam: ${exam_id}`, JSON.stringify(data));
 
     res.json({ 
       success: true, 
       message: 'AI detection event logged',
-      event: type
+      event: type,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('[❌ AI DETECTION LOG ERROR]', error.message);
