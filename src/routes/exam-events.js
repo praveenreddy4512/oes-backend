@@ -373,13 +373,43 @@ router.post('/ai-detection', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields: type, data, student_id, exam_id' });
     }
 
-    // Store AI detection event - could be stored in exam_events or separate table
-    // For now, just log it for monitoring
-    console.log(`[⚠️ AI DETECTION] Type: ${type}, Student: ${student_id}, Exam: ${exam_id}`, JSON.stringify(data));
+    // Get current submission for this student+exam
+    const [submissions] = await pool.execute(
+      `SELECT id FROM submissions WHERE student_id = ? AND exam_id = ? ORDER BY id DESC LIMIT 1`,
+      [student_id, exam_id]
+    );
+
+    if (submissions.length === 0) {
+      return res.status(400).json({ error: 'No submission found for this student and exam' });
+    }
+
+    const submission_id = submissions[0].id;
+
+    // ✅ Store AI detection event in database
+    const eventDetails = {
+      type: type,
+      ...data,
+      userAgent: userAgent
+    };
+
+    await pool.execute(
+      `INSERT INTO exam_events 
+       (submission_id, student_id, exam_id, event_type, event_details) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        submission_id,
+        student_id,
+        exam_id,
+        'ai_detection',  // Event type for all AI detections
+        JSON.stringify(eventDetails)
+      ]
+    );
+
+    console.log(`[⚠️ AI DETECTION STORED] Type: ${type}, Student: ${student_id}, Exam: ${exam_id}`, JSON.stringify(data));
 
     res.json({ 
       success: true, 
-      message: 'AI detection event logged',
+      message: 'AI detection event stored',
       event: type,
       timestamp: new Date().toISOString()
     });
