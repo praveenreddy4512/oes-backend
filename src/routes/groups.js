@@ -246,7 +246,7 @@ router.get("/debug/check", requireRole('admin'), async (req, res) => {
 
 // ===== STUDENT ROUTES =====
 
-// Get student's groups
+// Get student's own groups
 router.get("/student/my-groups", async (req, res) => {
   try {
     const [groups] = await pool.execute(
@@ -255,6 +255,120 @@ router.get("/student/my-groups", async (req, res) => {
     );
     
     res.json(groups);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get a specific student's groups (admin only) - for editing existing students
+router.get("/student/:studentId/groups", requireRole('admin'), async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    
+    // Verify student exists
+    const [student] = await pool.execute(
+      "SELECT id FROM users WHERE id = ? AND role = 'student'",
+      [studentId]
+    );
+    
+    if (!student.length) {
+      return res.status(404).json({ error: "Student not found" });
+    }
+    
+    // Get student's groups
+    const [groups] = await pool.execute(
+      "SELECT g.id FROM groups g JOIN group_members gm ON g.id = gm.group_id WHERE gm.student_id = ? ORDER BY g.name",
+      [studentId]
+    );
+    
+    // Return array of group IDs
+    res.json(groups.map(g => g.id));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update student's group assignments (admin only) - for editing existing students
+router.put("/student/:studentId/groups", requireRole('admin'), async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { groupIds } = req.body; // Array of group IDs to assign
+    
+    if (!Array.isArray(groupIds)) {
+      return res.status(400).json({ error: "groupIds array is required" });
+    }
+    
+    // Verify student exists
+    const [student] = await pool.execute(
+      "SELECT id FROM users WHERE id = ? AND role = 'student'",
+      [studentId]
+    );
+    
+    if (!student.length) {
+      return res.status(404).json({ error: "Student not found" });
+    }
+    
+    // Get current groups
+    const [currentGroups] = await pool.execute(
+      "SELECT group_id FROM group_members WHERE student_id = ?",
+      [studentId]
+    );
+    const currentGroupIds = currentGroups.map(g => g.group_id);
+    
+    // Groups to add (in newGroupIds but not in current)
+    const toAdd = groupIds.filter(id => !currentGroupIds.includes(id));
+    
+    // Groups to remove (in current but not in newGroupIds)
+    const toRemove = currentGroupIds.filter(id => !groupIds.includes(id));
+    
+    const results = { added: 0, removed: 0, errors: [] };
+    
+    // Add new groups
+    for (const groupId of toAdd) {
+      try {
+        // Verify group exists
+        const [group] = await pool.execute(
+          "SELECT id FROM groups WHERE id = ?",
+          [groupId]
+        );
+        
+        if (!group.length) {
+          results.errors.push(`Group ${groupId} not found`);
+          continue;
+        }
+        
+        const [insertResult] = await pool.execute(
+          "INSERT IGNORE INTO group_members (group_id, student_id, added_by) VALUES (?, ?, ?)",
+          [groupId, studentId, req.user.id]
+        );
+        
+        if (insertResult.affectedRows > 0) {
+          results.added++;
+          console.log(`[✅] Student ${studentId} added to group ${groupId}`);
+        }
+      } catch (err) {
+        results.errors.push(`Error adding to group ${groupId}: ${err.message}`);
+      }
+    }
+    
+    // Remove groups
+    for (const groupId of toRemove) {
+      try {
+        const [deleteResult] = await pool.execute(
+          "DELETE FROM group_members WHERE student_id = ? AND group_id = ?",
+          [studentId, groupId]
+        );
+        
+        if (deleteResult.affectedRows > 0) {
+          results.removed++;
+          console.log(`[✅] Student ${studentId} removed from group ${groupId}`);
+        }
+      } catch (err) {
+        results.errors.push(`Error removing from group ${groupId}: ${err.message}`);
+      }
+    }
+    
+    res.json({ message: "Student groups updated", ...results });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
