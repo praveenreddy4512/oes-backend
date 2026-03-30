@@ -348,4 +348,46 @@ router.get('/exam/:examId', async (req, res) => {
   }
 });
 
+/**
+ * Log AI Extension Detection Event
+ * POST /api/exam-events/ai-detection
+ * 
+ * Logs when student attempts to use AI tools (Copilot, ChatGPT, etc)
+ * 
+ * Body:
+ * {
+ *   "type": "COPILOT_SHORTCUT_ATTEMPT|AI_API_REQUEST_BLOCKED|EXTENSION_MESSAGE_ATTEMPT|etc",
+ *   "data": { event details },
+ *   "userAgent": browser user agent,
+ *   "timestamp": ISO timestamp
+ * }
+ */
+router.post('/ai-detection', async (req, res) => {
+  try {
+    const { type, data, userAgent, timestamp } = req.body;
+    const { userId, userRole } = getUserFromRequest(req);
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!type || !data) {
+      return res.status(400).json({ error: 'type and data are required' });
+    }
+
+    // Store AI detection event in a separate table (or in exam_events with special type)
+    // For now, just log it
+    console.log(`[⚠️ AI DETECTION] ${type} from student ${userId}`, JSON.stringify(data));
+
+    res.json({ 
+      success: true, 
+      message: 'AI detection event logged',
+      event: type
+    });
+  } catch (error) {
+    console.error('[❌ AI DETECTION LOG ERROR]', error.message);
+    res.status(500).json({ error: 'Failed to log AI detection event' });
+  }
+});
+
 export default router;
