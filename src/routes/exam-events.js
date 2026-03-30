@@ -350,7 +350,7 @@ router.get('/exam/:examId', async (req, res) => {
 
 /**
  * Log AI Extension Detection Event
- * POST /api/exam-events/ai-detection
+ * POST /api/submissions/ai-detection
  * 
  * Logs when student attempts to use AI tools (Copilot, ChatGPT, etc)
  * 
