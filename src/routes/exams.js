@@ -1,7 +1,7 @@
 import express from "express";
 import { pool } from "../db.js";
 import { authMiddleware, requireRole } from "../middleware/auth.js";
-import { sendExamCompletionEmail } from "../services/emailService.js";
+import { sendExamCompletionEmail, sendNewExamNotificationEmail } from "../services/emailService.js";
 
 const router = express.Router();
 
@@ -78,6 +78,13 @@ router.post("/", async (req, res) => {
 
     const examId = result.insertId;
 
+    // Get professor details for email notification
+    const [professors] = await pool.execute(
+      "SELECT username, email FROM users WHERE id = ?",
+      [professor_id]
+    );
+    const professorName = professors.length > 0 ? professors[0].username : "Professor";
+
     // Add exam to groups if provided
     if (Array.isArray(groupIds) && groupIds.length > 0) {
       for (const groupId of groupIds) {
@@ -85,6 +92,33 @@ router.post("/", async (req, res) => {
           "INSERT INTO exam_groups (exam_id, group_id) VALUES (?, ?)",
           [examId, groupId]
         );
+      }
+
+      // ✅ NEW: Get all students in these groups and send them notification emails
+      for (const groupId of groupIds) {
+        try {
+          const [students] = await pool.execute(
+            "SELECT u.id, u.username, u.email FROM users u JOIN group_members gm ON u.id = gm.student_id WHERE gm.group_id = ? AND u.role = 'student'",
+            [groupId]
+          );
+
+          // Send notification email to each student (non-blocking)
+          for (const student of students) {
+            sendNewExamNotificationEmail(
+              student.email,
+              student.username,
+              title,
+              professorName,
+              startTime,
+              endTime,
+              duration
+            ).catch(err => {
+              console.error(`[⚠️ EMAIL] Failed to send exam notification to ${student.email}:`, err.message);
+            });
+          }
+        } catch (groupError) {
+          console.error(`[⚠️ EMAIL] Error fetching students for group ${groupId}:`, groupError.message);
+        }
       }
     }
 

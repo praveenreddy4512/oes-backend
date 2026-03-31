@@ -450,3 +450,87 @@ export async function sendPasswordChangedEmail(email, userName) {
 
   return await sendEmail(email, subject, html, 'PASSWORD_CHANGED');
 }
+
+/**
+ * Send new exam notification email to students
+ * @param {string} studentEmail - Student email address
+ * @param {string} studentName - Student name
+ * @param {string} examTitle - Exam title
+ * @param {string} professorName - Professor name who created the exam
+ * @param {string} startTime - Exam start time (format: YYYY-MM-DD HH:MM)
+ * @param {string} endTime - Exam end time (format: YYYY-MM-DD HH:MM)
+ * @param {number} durationMinutes - Exam duration in minutes
+ */
+export async function sendNewExamNotificationEmail(
+  studentEmail,
+  studentName,
+  examTitle,
+  professorName,
+  startTime,
+  endTime,
+  durationMinutes
+) {
+  // Format times for display (remove milliseconds if present)
+  const formatTime = (time) => {
+    if (!time) return 'N/A';
+    return String(time).replace(/\.\d{3}Z?$/, '').replace('Z', '');
+  };
+  
+  const formattedStart = formatTime(startTime);
+  const formattedEnd = formatTime(endTime);
+
+  const subject = `📝 New Exam Created: ${examTitle}`;
+  const html = `
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <div style="background-color: #af0c3e; color: white; padding: 30px; text-align: center;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 600;">📝 New Exam Added</h1>
+      </div>
+      
+      <div style="padding: 30px;">
+        <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Dear <strong>${studentName}</strong>,</p>
+        
+        <p style="font-size: 15px; color: #555; line-height: 1.6; margin: 0 0 25px 0;">A new exam has been added to your course. Please review the details below:</p>
+        
+        <div style="background-color: #f5f5f5; border-left: 4px solid #af0c3e; padding: 20px; margin: 25px 0; border-radius: 4px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+            <tr>
+              <td style="padding: 10px 0; color: #666;"><strong>📋 Exam Title:</strong></td>
+              <td style="padding: 10px 0; color: #333; text-align: right;"><strong>${examTitle}</strong></td>
+            </tr>
+            <tr style="border-top: 1px solid #ddd;">
+              <td style="padding: 10px 0; color: #666;"><strong>👨‍🏫 Created By:</strong></td>
+              <td style="padding: 10px 0; color: #333; text-align: right;"><strong>${professorName}</strong></td>
+            </tr>
+            <tr style="border-top: 1px solid #ddd;">
+              <td style="padding: 10px 0; color: #666;"><strong>🕐 Start Time:</strong></td>
+              <td style="padding: 10px 0; color: #af0c3e; text-align: right;"><strong>${formattedStart}</strong></td>
+            </tr>
+            <tr style="border-top: 1px solid #ddd;">
+              <td style="padding: 10px 0; color: #666;"><strong>⏱️ End Time:</strong></td>
+              <td style="padding: 10px 0; color: #af0c3e; text-align: right;"><strong>${formattedEnd}</strong></td>
+            </tr>
+            <tr style="border-top: 1px solid #ddd;">
+              <td style="padding: 10px 0; color: #666;"><strong>⏳ Duration:</strong></td>
+              <td style="padding: 10px 0; color: #af0c3e; text-align: right;"><strong>${durationMinutes} minutes</strong></td>
+            </tr>
+          </table>
+        </div>
+        
+        <div style="background-color: #e8f4f8; border-left: 4px solid #0288d1; padding: 15px; margin: 25px 0; border-radius: 4px;">
+          <p style="margin: 0; color: #01579b; font-size: 15px; line-height: 1.6;">
+            <strong>ℹ️ Important:</strong> Make sure you log in to your examination portal before the start time. You will only be able to start the exam during the scheduled window.
+          </p>
+        </div>
+        
+        <p style="font-size: 15px; color: #555; line-height: 1.6; margin: 25px 0;">If you have any questions about this exam, please contact your instructor or the examination support team.</p>
+        
+        <p style="font-size: 13px; color: #999; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; line-height: 1.6;">
+          Online Examination System<br>
+          This is an automated message. Please do not reply to this email.
+        </p>
+      </div>
+    </div>
+  `;
+
+  return await sendEmail(studentEmail, subject, html, 'NEW_EXAM_NOTIFICATION');
+}
