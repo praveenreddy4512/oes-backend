@@ -57,8 +57,8 @@ router.post("/", authMiddleware, async (req, res) => {
         return res.status(400).json({ error: "Exam already submitted by this student" });
       }
       // If student has an active session, return that submission_id (allows takeover/resume)
-      return res.json({ 
-        submission_id: submission.id, 
+      return res.json({
+        submission_id: submission.id,
         message: "Resuming existing session",
         isResumed: true
       });
@@ -75,19 +75,19 @@ router.post("/", authMiddleware, async (req, res) => {
       if (exam.is_ip_restricted && exam.restricted_ip) {
         // Get client IP handling potential proxies
         let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
-        
+
         // Normalize IPv6 mapped IPv4 addresses
         if (clientIp.startsWith('::ffff:')) {
           clientIp = clientIp.split(':').pop();
         }
 
         const allowedIps = exam.restricted_ip.split(',').map(ip => ip.trim());
-        
+
         if (!allowedIps.includes(clientIp)) {
           console.warn(`[🚫 IP MISMATCH] Student ${student_id} tried to start exam ${exam_id} from ${clientIp}. Allowed: ${exam.restricted_ip}`);
-          return res.status(403).json({ 
-            error: "IP Mismatch Detected", 
-            message: "You are not authorized to start this exam from your current network location." 
+          return res.status(403).json({
+            error: "IP Mismatch Detected",
+            message: "You are not authorized to start this exam from your current network location."
           });
         }
       }
@@ -116,7 +116,7 @@ router.post("/", authMiddleware, async (req, res) => {
 // Get submission details
 // 🔐 SECURITY: Prevent IDOR - users can only get their own submissions (students)
 // Professors and admins can access any submission
-router.get("/:id", authMiddleware, 
+router.get("/:id", authMiddleware,
   async (req, res, next) => {
     // Check if user is student - apply IDOR protection
     if (req.user.role === "student") {
@@ -227,7 +227,7 @@ router.post("/:submission_id/submit", authMiddleware, async (req, res) => {
 
     // Mark status as completed (no pass/fail criteria)
     const status = "completed";
-    
+
     console.log(`[GRADING] Exam ID: ${submission.exam_id}, Student: ${submission.student_id}, Score: ${correctAnswers}/${totalQuestions}, Percentage: ${percentage}%`);
 
     // Mark submission as complete

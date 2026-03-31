@@ -171,6 +171,46 @@ app.post("/api/login", async (req, res) => {
     // 🔐 FINGERPRINTING: Update current device fingerprint
     // If a new fingerprint is provided, it becomes the ONLY active session
     if (fingerprint) {
+      // ✅ SECURITY: Auto-submit any active exam before switching devices!
+      // This detects if the student is currently in an exam and "closes" it for safety
+      try {
+        const [activeSubmissions] = await pool.execute(
+          "SELECT id, exam_id FROM submissions WHERE student_id = ? AND is_submitted = FALSE",
+          [user.id]
+        );
+
+        for (const sub of activeSubmissions) {
+          console.log("[🔒 AUTO-TERMINATE] Closing active exam for student on device switch:", user.username, "Exam:", sub.exam_id);
+          
+          // 1. Calculate score from currently saved answers
+          const [answers] = await pool.execute(
+            "SELECT COUNT(*) as total, SUM(IF(is_correct, 1, 0)) as correct FROM answers WHERE submission_id = ?",
+            [sub.id]
+          );
+          
+          const totalQuestions = answers[0].total || 0;
+          const correctAnswers = answers[0].correct || 0;
+          const percentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+
+          // 2. Finalize submission in DB
+          await pool.execute(
+            "UPDATE submissions SET is_submitted = TRUE, completed_at = NOW() WHERE id = ?",
+            [sub.id]
+          ).catch(async () => {
+             // Fallback if completed_at doesn't exist
+             await pool.execute("UPDATE submissions SET is_submitted = TRUE WHERE id = ?", [sub.id]);
+          });
+
+          // 3. Create a result record marked as terminated/multi-login
+          await pool.execute(
+            "INSERT INTO results (submission_id, exam_id, student_id, total_marks, obtained_marks, percentage, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [sub.id, sub.exam_id, user.id, totalQuestions, correctAnswers, percentage, 'terminated_on_login']
+          );
+        }
+      } catch (autoErr) {
+        console.error("[⚠️ AUTO-SUBMIT FAILED]", autoErr.message);
+      }
+
       await pool.execute(
         "UPDATE users SET current_fingerprint = ? WHERE id = ?",
         [fingerprint, user.id]
