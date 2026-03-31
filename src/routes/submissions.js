@@ -75,23 +75,22 @@ router.post("/", authMiddleware, async (req, res) => {
       const now = new Date();
       const nowMs = now.getTime();
 
-      console.log(`[🕒 TIME CHECK] Exam: ${exam_id}, Now: ${now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}, Start: ${exam.start_time ? new Date(exam.start_time.replace(' ', 'T') + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'N/A'}`);
+      console.log(`[🕒 TIME CHECK] Exam: ${exam_id}, Now: ${now.toLocaleString()}, Start: ${exam.start_time || 'N/A'}`);
 
       // 🕒 Time Window Check (Robust Comparison)
       if (exam.start_time) {
-        const startTimeMs = new Date(exam.start_time.replace(' ', 'T') + 'Z').getTime();
+        const startTimeMs = new Date(exam.start_time.replace(' ', 'T')).getTime();
         if (nowMs < startTimeMs) {
-          // Convert UTC to IST for display (UTC+5:30)
-          const istStartTime = new Date(startTimeMs + (5.5 * 60 * 60 * 1000));
+          // Display start time as-is
           return res.status(403).json({
             error: "Exam Not Yet Available",
-            message: `This exam is scheduled to start at ${istStartTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}. It is currently ${now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}.`
+            message: `This exam is scheduled to start at ${exam.start_time}. It is currently ${now.toLocaleString()}.`
           });
         }
       }
 
       if (exam.end_time) {
-        const endTimeMs = new Date(exam.end_time.replace(' ', 'T') + 'Z').getTime();
+        const endTimeMs = new Date(exam.end_time.replace(' ', 'T')).getTime();
         if (nowMs > endTimeMs) {
           return res.status(403).json({
             error: "Exam Period Expired",
