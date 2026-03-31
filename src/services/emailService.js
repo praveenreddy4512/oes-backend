@@ -386,7 +386,7 @@ export async function sendAutoSubmissionEmail(studentEmail, studentName, examTit
   // Format violations for email
   const violationListHtml = violations.length > 0 
     ? `<ul style="color: #af0c3e; font-weight: 600; padding-left: 20px;">
-        ${violations.slice(-5).map(v => `<li>${v.type.replace(/_/g, ' ')} detected at ${new Date(v.timestamp).toLocaleTimeString()}</li>`).join('')}
+        ${violations.slice(-5).map(v => `<li>${v.type.replace(/_/g, ' ')} at ${v.localTime || new Date(v.timestamp).toLocaleTimeString()}</li>`).join('')}
        </ul>`
     : 'Multiple security protocols were breached.';
 
