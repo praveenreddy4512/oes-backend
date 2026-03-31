@@ -373,6 +373,52 @@ export async function sendPasswordResetEmail(email, userName, resetToken) {
  * @param {string} email - User email address
  * @param {string} userName - User name
  */
+/**
+ * Send auto-submission notification due to security violations
+ * @param {string} studentEmail - Student email address
+ * @param {string} studentName - Student name
+ * @param {string} examTitle - Exam title
+ * @param {Array} violations - List of violation events
+ */
+export async function sendAutoSubmissionEmail(studentEmail, studentName, examTitle, violations = []) {
+  const subject = `CRITICAL: Exam Terminated - Security Violation - ${examTitle}`;
+  
+  // Format violations for email
+  const violationListHtml = violations.length > 0 
+    ? `<ul style="color: #af0c3e; font-weight: 600; padding-left: 20px;">
+        ${violations.slice(-5).map(v => `<li>${v.type.replace(/_/g, ' ')} detected at ${new Date(v.timestamp).toLocaleTimeString()}</li>`).join('')}
+       </ul>`
+    : 'Multiple security protocols were breached.';
+
+  const html = `
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+      <div style="background-color: #af0c3e; color: white; padding: 30px; text-align: center;">
+        <h1 style="margin: 0; font-size: 26px; font-weight: 700;">Security Breach Alert</h1>
+      </div>
+      
+      <div style="padding: 30px;">
+        <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">Dear <strong>${studentName}</strong>,</p>
+        
+        <p style="font-size: 15px; color: #555; line-height: 1.6; margin: 0 0 25px 0;">Your exam session for <strong>${examTitle}</strong> was <strong>terminated and automatically submitted</strong> due to multiple security violations.</p>
+        
+        <div style="background-color: #fff5f5; border-left: 4px solid #af0c3e; padding: 20px; margin: 25px 0; border-radius: 8px;">
+          <p style="margin: 0 0 10px 0; font-weight: 700; color: #af0c3e;">Violation Summary:</p>
+          ${violationListHtml}
+        </div>
+        
+        <p style="font-size: 14px; color: #666; line-height: 1.6; margin: 25px 0;">The system detected activities that bypass the established exam integrity protocols. Your current progress has been locked and submitted to your instructor for mandatory review.</p>
+        
+        <p style="font-size: 13px; color: #999; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px; line-height: 1.6;">
+          Online Examination Security System<br>
+          This is an automated security notification.
+        </p>
+      </div>
+    </div>
+  `;
+
+  return await sendEmail(studentEmail, subject, html, 'SECURITY_AUTO_SUBMIT');
+}
+
 export async function sendPasswordChangedEmail(email, userName) {
   const subject = 'Password Changed Successfully';
   const html = `

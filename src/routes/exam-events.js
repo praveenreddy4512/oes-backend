@@ -289,6 +289,26 @@ router.post('/ai-detection', async (req, res) => {
       [submission_id, student_id, exam_id, 'ai_detection', JSON.stringify(eventDetails)]
     );
 
+    // ✅ If this was a terminal strike, send the security alert email
+    if (req.body.isFinalStrike) {
+      try {
+        const [userData] = await pool.execute('SELECT username, email FROM users WHERE id = ?', [student_id]);
+        const [examData] = await pool.execute('SELECT title FROM exams WHERE id = ?', [exam_id]);
+        
+        if (userData.length > 0 && examData.length > 0) {
+          const { sendAutoSubmissionEmail } = await import('../services/emailService.js');
+          await sendAutoSubmissionEmail(
+            userData[0].email,
+            userData[0].username,
+            examData[0].title,
+            req.body.allEvents || [] // Send the list of events as the reason
+          );
+        }
+      } catch (emailErr) {
+        console.error('[⚠️ AUTO-SUBMIT EMAIL] Failed:', emailErr.message);
+      }
+    }
+
     res.json({ success: true, message: 'AI detection event stored' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to log AI detection event' });
