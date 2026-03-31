@@ -181,13 +181,13 @@ app.post("/api/login", async (req, res) => {
 
         for (const sub of activeSubmissions) {
           console.log("[🔒 AUTO-TERMINATE] Closing active exam for student on device switch:", user.username, "Exam:", sub.exam_id);
-          
+
           // 1. Calculate score from currently saved answers
           const [answers] = await pool.execute(
             "SELECT COUNT(*) as total, SUM(IF(is_correct, 1, 0)) as correct FROM answers WHERE submission_id = ?",
             [sub.id]
           );
-          
+
           const totalQuestions = answers[0].total || 0;
           const correctAnswers = answers[0].correct || 0;
           const percentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
@@ -197,8 +197,8 @@ app.post("/api/login", async (req, res) => {
             "UPDATE submissions SET is_submitted = TRUE, completed_at = NOW() WHERE id = ?",
             [sub.id]
           ).catch(async () => {
-             // Fallback if completed_at doesn't exist
-             await pool.execute("UPDATE submissions SET is_submitted = TRUE WHERE id = ?", [sub.id]);
+            // Fallback if completed_at doesn't exist
+            await pool.execute("UPDATE submissions SET is_submitted = TRUE WHERE id = ?", [sub.id]);
           });
 
           // 3. Create a result record marked as terminated/multi-login

@@ -64,14 +64,32 @@ router.post("/", authMiddleware, async (req, res) => {
       });
     }
 
-    // 🌐 IP Based Access Control
+    // 🌐 Access Control: IP and Time Window
     const [examData] = await pool.execute(
-      "SELECT is_ip_restricted, restricted_ip FROM exams WHERE id = ?",
+      "SELECT is_ip_restricted, restricted_ip, start_time, end_time FROM exams WHERE id = ?",
       [exam_id]
     );
 
     if (examData.length > 0) {
       const exam = examData[0];
+      const now = new Date();
+
+      // 🕒 Time Window Check
+      if (exam.start_time && now < new Date(exam.start_time)) {
+        return res.status(403).json({
+          error: "Exam Not Yet Available",
+          message: `This exam is scheduled to start at ${new Date(exam.start_time).toLocaleString()}. Please wait until then.`
+        });
+      }
+
+      if (exam.end_time && now > new Date(exam.end_time)) {
+        return res.status(403).json({
+          error: "Exam Period Expired",
+          message: "The window for starting this exam has closed. Please contact your professor."
+        });
+      }
+
+      // 🌐 IP Based Access Control
       if (exam.is_ip_restricted && exam.restricted_ip) {
         // Get client IP handling potential proxies
         let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
