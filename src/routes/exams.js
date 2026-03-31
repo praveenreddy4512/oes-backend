@@ -67,8 +67,8 @@ router.post("/", async (req, res) => {
     const shuffleQuestions = shuffle_questions ? 1 : 0;
     const shuffleOptions = shuffle_options ? 1 : 0;
     const isIpRestricted = is_ip_restricted ? 1 : 0;
-    const startTime = start_time || null;
-    const endTime = end_time || null;
+    const startTime = start_time ? start_time.replace('T', ' ') : null;
+    const endTime = end_time ? end_time.replace('T', ' ') : null;
 
     // ✅ SECURE: Use parameterized queries with type conversion
     const [result] = await pool.execute(
@@ -115,8 +115,8 @@ router.put("/:id", async (req, res) => {
     const isIpRestricted = is_ip_restricted ? 1 : 0;
     const finalStatus = status || 'draft';
     const finalDuration = duration_minutes ? Number(duration_minutes) : 60;
-    const startTime = start_time || null;
-    const endTime = end_time || null;
+    const startTime = start_time ? start_time.replace('T', ' ') : null;
+    const endTime = end_time ? end_time.replace('T', ' ') : null;
 
     await pool.execute(
       "UPDATE exams SET title = ?, description = ?, duration_minutes = ?, status = ?, shuffle_questions = ?, shuffle_options = ?, is_ip_restricted = ?, restricted_ip = ?, start_time = ?, end_time = ? WHERE id = ?",
