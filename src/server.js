@@ -122,7 +122,7 @@ app.post("/api/login", async (req, res) => {
 
     if (rows.length === 0) {
       // Prevent timing attacks by always hashing even if user not found
-      await argon2.verify("$argon2id$v=19$m=19456$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAA", password).catch(() => {});
+      await argon2.verify("$argon2id$v=19$m=19456$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAA", password).catch(() => { });
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
@@ -145,7 +145,7 @@ app.post("/api/login", async (req, res) => {
     // - Automatic salting (each password different hash)
     // - Time-cost iterations (slows brute-force attempts)
     // - Constant-time comparison (prevents timing attacks)
-    
+
     // MIGRATION STRATEGY: Handle both plaintext (old) and hashed (new) passwords
     let passwordMatch = false;
     let needsRehash = false;
@@ -198,7 +198,7 @@ app.post("/api/login", async (req, res) => {
     // 🔐 JWT: Generate JSON Web Token (HMAC-SHA256)
     // Pass fingerprint to include in token payload
     const token = generateToken(user, fingerprint);
-    console.log(`[🔐 JWT] Token generated for user: ${username} (Device ID: ${fingerprint ? fingerprint.substring(0,8)+'...' : 'NONE'})`);
+    console.log(`[🔐 JWT] Token generated for user: ${username} (Device ID: ${fingerprint ? fingerprint.substring(0, 8) + '...' : 'NONE'})`);
 
     // ✅ SECURE: Store user data in session (server-side)
     // Session ID is stored in cookie, actual user data stays on server

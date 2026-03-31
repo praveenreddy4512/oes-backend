@@ -46,12 +46,22 @@ router.post("/", authMiddleware, async (req, res) => {
 
     // ✅ SECURE: Use parameterized queries to prevent SQL injection
     const [existing] = await pool.execute(
-      "SELECT id FROM submissions WHERE exam_id = ? AND student_id = ?",
+      "SELECT id, is_submitted FROM submissions WHERE exam_id = ? AND student_id = ?",
       [exam_id, student_id]
     );
 
     if (existing.length > 0) {
-      return res.status(400).json({ error: "Exam already submitted by this student" });
+      const submission = existing[0];
+      // If student has already finalized the submission, block it
+      if (submission.is_submitted) {
+        return res.status(400).json({ error: "Exam already submitted by this student" });
+      }
+      // If student has an active session, return that submission_id (allows takeover/resume)
+      return res.json({ 
+        submission_id: submission.id, 
+        message: "Resuming existing session",
+        isResumed: true
+      });
     }
 
     // 🌐 IP Based Access Control
