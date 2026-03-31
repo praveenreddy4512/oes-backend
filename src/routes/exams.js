@@ -58,7 +58,7 @@ router.get("/:id", async (req, res) => {
 // Create exam (professor/admin) - with optional group assignment
 router.post("/", async (req, res) => {
   try {
-    const { title, description, professor_id, duration_minutes, shuffle_questions, shuffle_options, groupIds } = req.body;
+    const { title, description, professor_id, duration_minutes, shuffle_questions, shuffle_options, groupIds, is_ip_restricted, restricted_ip } = req.body;
     // Validate required fields
     if (!title || !professor_id) {
       return res.status(400).json({ error: "Title and professor_id are required" });
@@ -66,11 +66,12 @@ router.post("/", async (req, res) => {
     const duration = duration_minutes ? Number(duration_minutes) : 60;
     const shuffleQuestions = shuffle_questions ? 1 : 0;
     const shuffleOptions = shuffle_options ? 1 : 0;
+    const isIpRestricted = is_ip_restricted ? 1 : 0;
     
     // ✅ SECURE: Use parameterized queries with type conversion
     const [result] = await pool.execute(
-      "INSERT INTO exams (title, description, professor_id, duration_minutes, shuffle_questions, shuffle_options) VALUES (?, ?, ?, ?, ?, ?)",
-      [title, description || "", professor_id, duration, shuffleQuestions, shuffleOptions]
+      "INSERT INTO exams (title, description, professor_id, duration_minutes, shuffle_questions, shuffle_options, is_ip_restricted, restricted_ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [title, description || "", professor_id, duration, shuffleQuestions, shuffleOptions, isIpRestricted, restricted_ip || null]
     );
     
     const examId = result.insertId;
@@ -95,7 +96,7 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, duration_minutes, status, shuffle_questions, shuffle_options } = req.body;
+    const { title, description, duration_minutes, status, shuffle_questions, shuffle_options, is_ip_restricted, restricted_ip } = req.body;
     
     // Validate exam exists
     const [exam] = await pool.execute("SELECT id FROM exams WHERE id = ?", [id]);
@@ -109,12 +110,13 @@ router.put("/:id", async (req, res) => {
     
     const shuffleQuestions = shuffle_questions ? 1 : 0;
     const shuffleOptions = shuffle_options ? 1 : 0;
+    const isIpRestricted = is_ip_restricted ? 1 : 0;
     const finalStatus = status || 'draft';
     const finalDuration = duration_minutes ? Number(duration_minutes) : 60;
     
     await pool.execute(
-      "UPDATE exams SET title = ?, description = ?, duration_minutes = ?, status = ?, shuffle_questions = ?, shuffle_options = ? WHERE id = ?",
-      [title, description || "", finalDuration, finalStatus, shuffleQuestions, shuffleOptions, id]
+      "UPDATE exams SET title = ?, description = ?, duration_minutes = ?, status = ?, shuffle_questions = ?, shuffle_options = ?, is_ip_restricted = ?, restricted_ip = ? WHERE id = ?",
+      [title, description || "", finalDuration, finalStatus, shuffleQuestions, shuffleOptions, isIpRestricted, restricted_ip || null, id]
     );
     res.json({ message: "Exam updated" });
   } catch (error) {

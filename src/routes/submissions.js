@@ -54,6 +54,35 @@ router.post("/", authMiddleware, async (req, res) => {
       return res.status(400).json({ error: "Exam already submitted by this student" });
     }
 
+    // 🌐 IP Based Access Control
+    const [examData] = await pool.execute(
+      "SELECT is_ip_restricted, restricted_ip FROM exams WHERE id = ?",
+      [exam_id]
+    );
+
+    if (examData.length > 0) {
+      const exam = examData[0];
+      if (exam.is_ip_restricted && exam.restricted_ip) {
+        // Get client IP handling potential proxies
+        let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+        
+        // Normalize IPv6 mapped IPv4 addresses
+        if (clientIp.startsWith('::ffff:')) {
+          clientIp = clientIp.split(':').pop();
+        }
+
+        const allowedIps = exam.restricted_ip.split(',').map(ip => ip.trim());
+        
+        if (!allowedIps.includes(clientIp)) {
+          console.warn(`[🚫 IP MISMATCH] Student ${student_id} tried to start exam ${exam_id} from ${clientIp}. Allowed: ${exam.restricted_ip}`);
+          return res.status(403).json({ 
+            error: "IP Mismatch Detected", 
+            message: "You are not authorized to start this exam from your current network location." 
+          });
+        }
+      }
+    }
+
     // ❌ VULNERABLE CODE (for educational purposes - DO NOT USE IN PRODUCTION)
     // Insecure INSERT:
     // const unsafeInsertQuery = `INSERT INTO submissions (exam_id, student_id) VALUES (${exam_id}, ${student_id})`;
