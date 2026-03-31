@@ -73,20 +73,29 @@ router.post("/", authMiddleware, async (req, res) => {
     if (examData.length > 0) {
       const exam = examData[0];
       const now = new Date();
+      const nowMs = now.getTime();
 
-      // 🕒 Time Window Check
-      if (exam.start_time && now < new Date(exam.start_time)) {
-        return res.status(403).json({
-          error: "Exam Not Yet Available",
-          message: `This exam is scheduled to start at ${new Date(exam.start_time).toLocaleString()}. Please wait until then.`
-        });
+      console.log(`[🕒 TIME CHECK] Exam: ${exam_id}, Now: ${now.toLocaleString()}, Start: ${exam.start_time ? new Date(exam.start_time).toLocaleString() : 'N/A'}`);
+
+      // 🕒 Time Window Check (Robust Comparison)
+      if (exam.start_time) {
+        const startTimeMs = new Date(exam.start_time).getTime();
+        if (nowMs < startTimeMs) {
+          return res.status(403).json({
+            error: "Exam Not Yet Available",
+            message: `This exam is scheduled to start at ${new Date(exam.start_time).toLocaleString()}. It is currently ${now.toLocaleString()}.`
+          });
+        }
       }
 
-      if (exam.end_time && now > new Date(exam.end_time)) {
-        return res.status(403).json({
-          error: "Exam Period Expired",
-          message: "The window for starting this exam has closed. Please contact your professor."
-        });
+      if (exam.end_time) {
+        const endTimeMs = new Date(exam.end_time).getTime();
+        if (nowMs > endTimeMs) {
+          return res.status(403).json({
+            error: "Exam Period Expired",
+            message: "The window for starting this exam has closed. Please contact your professor."
+          });
+        }
       }
 
       // 🌐 IP Based Access Control
