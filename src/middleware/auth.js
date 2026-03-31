@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { pool } from "../db.js";
 
 // 🔐 SECURITY: Use environment variable for JWT secret
 // In production, this should be a strong random string stored securely
@@ -10,13 +11,14 @@ const TOKEN_EXPIRY = "24h"; // Token expires in 24 hours
  * @param {Object} user - User object with id, username, and role
  * @returns {string} Signed JWT token
  */
-export function generateToken(user) {
+export function generateToken(user, fingerprint = null) {
   return jwt.sign(
     {
       id: user.id,
       username: user.username,
       role: user.role,
       email: user.email,
+      fingerprint: fingerprint, // Track device fingerprint in token
     },
     JWT_SECRET,
     {
@@ -55,27 +57,50 @@ export function verifyToken(token) {
  * 🔐 SECURITY: Prevents unauthenticated access
  */
 export function authMiddleware(req, res, next) {
-  try {
-    // Get token from Authorization header
-    // Expected format: "Bearer <token>"
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "Missing or invalid authorization header" });
+  // Use async wrapper to handle DB call
+  (async () => {
+    try {
+      // Get token from Authorization header
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Missing or invalid authorization header" });
+      }
+
+      const token = authHeader.substring(7); // Remove "Bearer " prefix
+      const decoded = verifyToken(token);
+
+      if (!decoded) {
+        return res.status(401).json({ error: "Invalid or expired token" });
+      }
+
+      // 🔐 SECURITY: Multi-login / Fingerprint check
+      // If token has a fingerprint, it MUST match the one stored in DB for this user
+      if (decoded.fingerprint) {
+        const [rows] = await pool.execute(
+          "SELECT current_fingerprint FROM users WHERE id = ?",
+          [decoded.id]
+        );
+        
+        if (rows.length > 0) {
+          const activeFingerprint = rows[0].current_fingerprint;
+          if (activeFingerprint && activeFingerprint !== decoded.fingerprint) {
+            console.warn(`[🚫 SESSION_INVALIDATED] User ${decoded.username} attempted access with old fingerprint. Current active: ${activeFingerprint}`);
+            return res.status(401).json({ 
+              error: "Session Invalidated", 
+              message: "Logged out because you signed in from another device or browser." 
+            });
+          }
+        }
+      }
+
+      // Attach user info to request object
+      req.user = decoded;
+      next();
+    } catch (err) {
+      console.error("[❌ AUTH ERROR]", err.message);
+      res.status(401).json({ error: "Authentication failed" });
     }
-
-    const token = authHeader.substring(7); // Remove "Bearer " prefix
-    const decoded = verifyToken(token);
-
-    if (!decoded) {
-      return res.status(401).json({ error: "Invalid or expired token" });
-    }
-
-    // Attach user info to request object
-    req.user = decoded;
-    next();
-  } catch (err) {
-    res.status(401).json({ error: "Authentication failed" });
-  }
+  })();
 }
 
 /**

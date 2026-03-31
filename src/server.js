@@ -84,7 +84,7 @@ app.get("/api/health", async (_req, res) => {
 });
 
 app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, fingerprint } = req.body;
 
   // ✅ SECURE: Validate both username and password
   if (!username || !password) {
@@ -114,7 +114,7 @@ app.post("/api/login", async (req, res) => {
     // ✅ SECURE: Use parameterized queries with Argon2 password hashing
     // Fetch user including their hashed password
     const [rows] = await pool.execute(
-      "SELECT id, username, role, email, password FROM users WHERE username = ? LIMIT 1",
+      "SELECT id, username, role, email, password, current_fingerprint FROM users WHERE username = ? LIMIT 1",
       [username]
     );
 
@@ -168,6 +168,16 @@ app.post("/api/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    // 🔐 FINGERPRINTING: Update current device fingerprint
+    // If a new fingerprint is provided, it becomes the ONLY active session
+    if (fingerprint) {
+      await pool.execute(
+        "UPDATE users SET current_fingerprint = ? WHERE id = ?",
+        [fingerprint, user.id]
+      );
+      console.log("[🔐 FINGERPRINT] Updated active device for:", username);
+    }
+
     // If password was plaintext, hash and update it in the database
     if (needsRehash) {
       try {
@@ -186,8 +196,9 @@ app.post("/api/login", async (req, res) => {
     console.log("[✅ LOGIN SUCCESS] User authenticated:", username);
 
     // 🔐 JWT: Generate JSON Web Token (HMAC-SHA256)
-    const token = generateToken(user);
-    console.log(`[🔐 JWT] Token generated for user: ${username}`);
+    // Pass fingerprint to include in token payload
+    const token = generateToken(user, fingerprint);
+    console.log(`[🔐 JWT] Token generated for user: ${username} (Device ID: ${fingerprint ? fingerprint.substring(0,8)+'...' : 'NONE'})`);
 
     // ✅ SECURE: Store user data in session (server-side)
     // Session ID is stored in cookie, actual user data stays on server
@@ -195,6 +206,7 @@ app.post("/api/login", async (req, res) => {
     req.session.username = user.username;
     req.session.role = user.role;
     req.session.email = user.email;
+    req.session.fingerprint = fingerprint;
 
     console.log("[🔐 SESSION] Created session for user:", username, "Session ID:", req.sessionID);
 
