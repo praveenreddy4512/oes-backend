@@ -75,11 +75,15 @@ router.post("/", authMiddleware, async (req, res) => {
       const now = new Date();
       const nowMs = now.getTime();
 
-      console.log(`[🕒 TIME CHECK] Exam: ${exam_id}, Now: ${now.toLocaleString()}, Start: ${exam.start_time || 'N/A'}`);
+      console.log(`[🕒 TIME CHECK] Exam: ${exam_id}, Now: ${now.toLocaleString()}, Start: ${exam.start_time ? String(exam.start_time) : 'N/A'}`);
 
       // 🕒 Time Window Check (Robust Comparison)
       if (exam.start_time) {
-        const startTimeMs = new Date(exam.start_time.replace(' ', 'T')).getTime();
+        // Convert start_time to string if it's a Date object
+        let startTimeStr = typeof exam.start_time === 'string' ? exam.start_time : String(exam.start_time);
+        // Remove .000Z or Z if present, then replace space with T
+        startTimeStr = startTimeStr.replace(/\.\d{3}Z?$/, '').replace('Z', '').replace(' ', 'T');
+        const startTimeMs = new Date(startTimeStr).getTime();
         if (nowMs < startTimeMs) {
           // Display start time as-is
           return res.status(403).json({
@@ -90,7 +94,11 @@ router.post("/", authMiddleware, async (req, res) => {
       }
 
       if (exam.end_time) {
-        const endTimeMs = new Date(exam.end_time.replace(' ', 'T')).getTime();
+        // Convert end_time to string if it's a Date object
+        let endTimeStr = typeof exam.end_time === 'string' ? exam.end_time : String(exam.end_time);
+        // Remove .000Z or Z if present, then replace space with T
+        endTimeStr = endTimeStr.replace(/\.\d{3}Z?$/, '').replace('Z', '').replace(' ', 'T');
+        const endTimeMs = new Date(endTimeStr).getTime();
         if (nowMs > endTimeMs) {
           return res.status(403).json({
             error: "Exam Period Expired",
