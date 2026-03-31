@@ -75,21 +75,21 @@ router.post("/", authMiddleware, async (req, res) => {
       const now = new Date();
       const nowMs = now.getTime();
 
-      console.log(`[🕒 TIME CHECK] Exam: ${exam_id}, Now: ${now.toLocaleString()}, Start: ${exam.start_time ? new Date(exam.start_time).toLocaleString() : 'N/A'}`);
+      console.log(`[🕒 TIME CHECK] Exam: ${exam_id}, Now: ${now.toLocaleString()}, Start: ${exam.start_time ? new Date(exam.start_time.replace(' ', 'T') + 'Z').toLocaleString() : 'N/A'}`);
 
       // 🕒 Time Window Check (Robust Comparison)
       if (exam.start_time) {
-        const startTimeMs = new Date(exam.start_time).getTime();
+        const startTimeMs = new Date(exam.start_time.replace(' ', 'T') + 'Z').getTime();
         if (nowMs < startTimeMs) {
           return res.status(403).json({
             error: "Exam Not Yet Available",
-            message: `This exam is scheduled to start at ${new Date(exam.start_time).toLocaleString()}. It is currently ${now.toLocaleString()}.`
+            message: `This exam is scheduled to start at ${new Date(exam.start_time.replace(' ', 'T') + 'Z').toLocaleString()}. It is currently ${now.toLocaleString()}.`
           });
         }
       }
 
       if (exam.end_time) {
-        const endTimeMs = new Date(exam.end_time).getTime();
+        const endTimeMs = new Date(exam.end_time.replace(' ', 'T') + 'Z').getTime();
         if (nowMs > endTimeMs) {
           return res.status(403).json({
             error: "Exam Period Expired",
