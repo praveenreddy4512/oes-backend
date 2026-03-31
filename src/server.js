@@ -433,6 +433,21 @@ const requireSession = (req, res, next) => {
   return res.status(401).json({ message: "Not authenticated. Please login." });
 };
 
+// 🛠️ DEBUG: Check database column types
+app.get("/api/debug/db-status", async (req, res) => {
+  try {
+    const [cols] = await pool.execute("DESCRIBE exams");
+    const targetFields = cols.filter(c => c.Field === 'start_time' || c.Field === 'end_time');
+    res.json({
+      message: "Database column status",
+      columns: targetFields,
+      explanation: targetFields.every(f => f.Type === 'datetime') ? "Correct: Columns are DATETIME" : "Error: Columns are likely DATE or missing"
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Route imports
 app.use("/api/exams", examsRouter);
 app.use("/api/questions", questionsRouter);
