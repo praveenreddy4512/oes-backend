@@ -91,19 +91,14 @@ router.post("/", requireRole("admin"), async (req, res) => {
   }
 });
 
-// Update user (users can update themselves, admins can update anyone)
+// Update user (ONLY ADMINS can update users - no self-service profile editing)
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     
-    // 🔐 Check if user is updating their own profile or is admin
-    if (req.user.id !== parseInt(id) && req.user.role !== "admin") {
-      return res.status(403).json({ error: "Access denied - cannot update other users" });
-    }
-    
-    // 🔐 Prevent users from changing their own role (admins can change roles)
-    if (req.user.role !== "admin" && req.body.role) {
-      return res.status(403).json({ error: "Only admins can change roles" });
+    // 🔐 SECURE: Only admins can update user profiles
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Access denied - only admins can update user profiles" });
     }
     
     const { username, password, role, email } = req.body;
