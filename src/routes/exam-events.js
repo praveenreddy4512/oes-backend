@@ -91,7 +91,7 @@ router.get('/exam/:examId', async (req, res) => {
         SUM(CASE WHEN ee.event_type = 'page_refreshed' THEN 1 ELSE 0 END) as page_refreshes,
         SUM(CASE WHEN ee.event_type = 'answer_saved' THEN 1 ELSE 0 END) as answers_saved,
         CASE 
-          WHEN SUM(CASE WHEN ee.event_type = 'tab_switched' THEN 1 ELSE 0 END) > 3 
+          WHEN SUM(CASE WHEN ee.event_type = 'tab_switched' THEN 1 ELSE 0 END) > 5 
                OR SUM(CASE WHEN ee.event_type = 'page_refreshed' THEN 1 ELSE 0 END) > 2
           THEN 'HIGH'
           ELSE 'LOW'
