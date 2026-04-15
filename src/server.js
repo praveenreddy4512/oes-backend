@@ -171,6 +171,12 @@ app.post("/api/login", async (req, res) => {
     // 🔐 FINGERPRINTING: Update current device fingerprint
     // If a new fingerprint is provided, it becomes the ONLY active session
     if (fingerprint) {
+      // 🔓 SECURITY: Logout the old device/session when new device logs in
+      const oldFingerprint = user.current_fingerprint;
+      if (oldFingerprint && oldFingerprint !== fingerprint) {
+        console.log(`[🔓 SESSION_LOGOUT] Invalidating previous session for ${username} (Old: ${oldFingerprint.substring(0, 8)}... → New: ${fingerprint.substring(0, 8)}...)`);
+      }
+
       // ✅ SECURITY: Auto-submit any active exam before switching devices!
       // This detects if the student is currently in an exam and "closes" it for safety
       try {
@@ -211,9 +217,10 @@ app.post("/api/login", async (req, res) => {
         console.error("[⚠️ AUTO-SUBMIT FAILED]", autoErr.message);
       }
 
+      // 🔐 Track session invalidation for audit purposes
       await pool.execute(
-        "UPDATE users SET current_fingerprint = ? WHERE id = ?",
-        [fingerprint, user.id]
+        "UPDATE users SET previous_fingerprint = ?, session_invalidated_at = NOW(), current_fingerprint = ? WHERE id = ?",
+        [oldFingerprint || null, fingerprint, user.id]
       );
       console.log("[🔐 FINGERPRINT] Updated active device for:", username);
     }

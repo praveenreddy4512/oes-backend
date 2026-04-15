@@ -77,17 +77,24 @@ export function authMiddleware(req, res, next) {
       // If token has a fingerprint, it MUST match the one stored in DB for this user
       if (decoded.fingerprint) {
         const [rows] = await pool.execute(
-          "SELECT current_fingerprint FROM users WHERE id = ?",
+          "SELECT current_fingerprint, session_invalidated_at FROM users WHERE id = ?",
           [decoded.id]
         );
         
         if (rows.length > 0) {
           const activeFingerprint = rows[0].current_fingerprint;
+          const invalidatedAt = rows[0].session_invalidated_at;
+          
           if (activeFingerprint && activeFingerprint !== decoded.fingerprint) {
-            console.warn(`[🚫 SESSION_INVALIDATED] User ${decoded.username} attempted access with old fingerprint. Current active: ${activeFingerprint}`);
+            console.warn(`[🚫 SESSION_INVALIDATED] User ${decoded.username} attempted access with old fingerprint.`);
+            console.warn(`   Old Device: ${decoded.fingerprint.substring(0, 8)}...`);
+            console.warn(`   Active Device: ${activeFingerprint.substring(0, 8)}...`);
+            console.warn(`   Invalidated at: ${invalidatedAt || 'unknown'}`);
+            
             return res.status(401).json({ 
               error: "Session Invalidated", 
-              message: "Logged out because you signed in from another device or browser." 
+              message: "Your device was logged out because you signed in from another device. For security, only one device can be active at a time.",
+              invalidatedAt: invalidatedAt
             });
           }
         }
